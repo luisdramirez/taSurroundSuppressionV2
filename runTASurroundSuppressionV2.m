@@ -32,11 +32,11 @@ useEyeTracker = 'No';
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
+deviceString = 'Corsair Corsair K95W Gaming Keyboard';
 % deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
-deviceString = 'Apple Internal Keyboard / Trackpad';
+% deviceString = 'Apple Internal Keyboard / Trackpad';
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -68,7 +68,7 @@ cd(expDir);
 
 %% SCREEN PARAMETERS
 screens = Screen('Screens'); % look at available screens
-p.screenWidthPixels = Screen('Rect', screens(1));
+p.screenWidthPixels = Screen('Rect', max(screens));
 screenWidth = 42; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen
 viewDistance = 128; % in cm, ideal distance: 1 cm equals 1 visual degree
 visAngle = (2*atan2(screenWidth/2, viewDistance))*(180/pi); % Visual angle of the whole screen
@@ -96,20 +96,19 @@ end
 
 %% GRATING PARAMETERS
 p.stimConfigurations = [1 2 3 4 5 6]; 
-p.stimConfigurationsNames = {'CollSrrndL' 'CollSrrndUnR' 'OrthSrrndL' 'OrthSrrndUnR' 'noSrrndL' 'noSrrndUnR'};
+p.stimConfigurationsNames = {'CollSrrndL' 'CollSrrndR' 'OrthSrrndL' 'OrthSrrndR' 'noSrrndL' 'noSrrndR'};
 
 % contrast parameters
 p.numContrasts = 1;
 p.minContrast = 0.1;
 p.maxContrast = 0.75;
-p.fixedStimContrast = 0.3;
-p.stim1Contrast = 0.75;
-p.stim2Contrast = p.stim1Contrast;
+p.fixedStimContrast = 0.2; 
+p.targContrast = 0.75; % the increment contrast
 p.surroundContrast = 1; 
 
 % size parameters
 p.centerSize = round(1 * p.pixPerDeg);
-p.surroundSize = p.screenWidthPixels;
+p.surroundSize = round(sqrt(p.screenWidthPixels(3)^2 + p.screenWidthPixels(4)^2));
 p.gapSize = round(0.02 * p.pixPerDeg);
 p.outerFixation = round(0.05 * p.pixPerDeg);
 p.innerFixation = p.outerFixation/1.5;
@@ -122,7 +121,7 @@ p.innerFixation = p.outerFixation/1.5;
 % 3 = surround contrast
 % 4 = orientation gratings
 
-[F1, F2, F3] = BalanceFactors(p.numBlocks, 0, p.stimConfigurations, p.stim1Contrast, p.stim2Contrast);
+[F1, F2, F3] = BalanceFactors(p.numBlocks, 0, p.stimConfigurations, p.targContrast, p.targContrast);
 
 p.trialEvents = [F1, F2, F3];
 
@@ -141,7 +140,7 @@ p.surroundOrientation = nan(size(p.targetsOrientation));
 for nTrial = 1:p.numTrials
    if p.trialEvents(nTrial,1) == 3 || p.trialEvents(nTrial,1) == 4 %  add 90 degrees if orthogonal trial
        p.surroundOrientation(nTrial) = p.targetsOrientation(nTrial) + 90;
-   elseif p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6 % surround = target if colinear
+   elseif p.trialEvents(nTrial,1) == 1 || p.trialEvents(nTrial,1) == 2 % surround = target if colinear
        p.surroundOrientation(nTrial) = p.targetsOrientation(nTrial);
    end
 end
@@ -151,9 +150,9 @@ p.trialEvents(:, end+1:end+2) = whichOrientation;
 
 % Determine target contrast
 for nTrial = 1:p.numTrials
-    if mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t1 contrast doesn't change
+    if mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t1 contrast doesn't change (right target)
         p.trialEvents(nTrial,2) = p.fixedStimContrast;
-    elseif mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t2 contrast doesn't change
+    elseif mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t2 contrast doesn't change (left target)
         p.trialEvents(nTrial,3) = p.fixedStimContrast;
     end
 end
@@ -193,34 +192,22 @@ end
 trial_cueDistrib
 
 p.trialEvents % [stimConfiguration, t1Contrast, t2Contrast, targOrientation, surrOrientation, cueValidity]
-p.trialEvents = Shuffle(p.trialEvents,2);
+% p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents
+p.stimConfigurationsNames 
 
 % Define parameters for the stimulus
 freq = 2;
 p.freq = p.centerSize/p.pixPerDeg * freq;
 p.freqSurround = p.surroundSize/p.pixPerDeg * freq;
 p.orientation = 0;
-p.phase = randsample(1:180,p.numTrials*4, true);
-p.phase = reshape(p.phase, [p.numTrials 4]);
-
-% Create triggers for trial events
-% [trialStart preCue T1 T2 postCue trialEnd] 
-triggerNames = {'Trial Starts' 'pre-cue' 'Target' 'Trial Ends'};
-triggersBase = [1 2 3 4];
-
-triggers = nan(p.numTrials,length(triggersBase));
-
-for nTrial = 1:p.numTrials
-    for nEvent = 1:length(triggersBase)
-        triggerChar = [num2str(nTrial) num2str(triggersBase(nEvent))];
-        triggers(nTrial,nEvent) = str2num(triggerChar);
-    end
-end
+p.phase = randsample(1:180,p.numTrials*2, true); % [centerPhase surrPhase]
+p.phase = reshape(p.phase, [p.numTrials 2]);
 %% TIMING PARAMETERS
-t.targetDur = 6/60; % nFramesPerTarget/refrate (s) max = 12 
+t.targetDur = .5; % (s)
 t.iti = 1; % (s)
 t.startTime = 2; % (s)
+t.stimLeadTime = 1; % (s)
 t.responseTime = []; % (s)
 t.cueTargetSOA = 1; % (s)
 t.cueLeadTime = 1; %(s)
@@ -255,7 +242,6 @@ t.runDur = t.trialDur*p.numTrials + sum(t.trialJit);
 % t.targetEndTimes = targetStartTimes + t.targetDur;
 % p.numTargets = numel(targetStartTimes);
 
-t.flickerTime = 0.2; % (s)
 t.flicker = 0.025; % (s)
 
 %% CREATE STIMULI
@@ -266,43 +252,39 @@ centerGaussian = zeros(p.centerSize); centerGaussian(eccen <= (p.centerSize/2)) 
 % Gaussian = conv2(Gaussian, fspecial('gaussian', p.pixPerDeg, p.pixPerDeg), 'same');
 
 % Make transparency mask for aplha blending the two images
-centerTransparencyMask = zeros(p.centerSize); centerTransparencyMask(eccen >= ((p.centerSize)/2)) = 255;
+centerTransparencyMask = zeros(p.centerSize); centerTransparencyMask(eccen <= ((p.centerSize)/2)) = 255;
 
 % make mask to create circle for the surround grating
 [x,y] = meshgrid((-p.surroundSize/2):(p.surroundSize/2)-1, (-p.surroundSize/2):(p.surroundSize/2)-1);
 eccen = sqrt((x).^2+(y).^2); 	% calculate eccentricity of each point in grid relative to center of 2D image
-surroundGaussian = zeros(p.surroundSize); surroundGaussian(eccen <= (p.surroundSize/2)) = 1;
+surroundGaussian = ones(p.surroundSize); % surroundGaussian(eccen <= (p.surroundSize/2)) = 1;
 
-surroundTransparencyMask = zeros(p.surroundSize); surroundTransparencyMask(eccen >= ((p.centerSize)/2)) = 255;
+% surroundTransparencyMask = zeros(p.surroundSize); surroundTransparencyMask(eccen >= ((p.centerSize)/2)) = 255;
 
 % make unique grating for every trial
 [Xc,Yc] = meshgrid(0:(p.centerSize-1), 0:(p.centerSize-1));
 [Xs,Ys] = meshgrid(0:(p.surroundSize-1), 0:(p.surroundSize-1));
 
 % Make actual gratings
-centerGrating = NaN(p.numTrials*2, p.centerSize, p.centerSize);
+centerGratings = NaN(p.numTrials*2, p.centerSize, p.centerSize);
+targetGratings = NaN(p.numTrials*2,(t.targetDur/t.flicker), p.centerSize, p.centerSize);
 surroundGrating = NaN(p.numTrials*2, p.surroundSize, p.surroundSize);
-centerTarget = NaN(p.numTrials*2, p.centerSize, p.centerSize);
 
 for nTrial = 1:p.numTrials
     center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nTrial,1)));
-    centerGrating(nTrial,:,:) = (center .* centerGaussian);
+    centerGratings(nTrial,:,:) = (center .* centerGaussian);
     
     surround = (sin(p.freqSurround*2*pi/p.surroundSize*(Xs.*sin(p.orientation*(pi/180))+Ys.*cos(p.orientation*(pi/180)))-p.phase(nTrial,2)));
     surroundGrating(nTrial,:,:) = (surround .* surroundGaussian);
-    
-    targetCenter = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nTrial,3)));
-    centerTarget(nTrial,:,:) = (targetCenter .* centerGaussian);
-
 end
 
 %% WINDOW SETUP
-[window,rect] = Screen('OpenWindow', max(screens), p.grey,[0 0 600 400],[],[],[],16);
+[window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('MyGammaTable.mat');
-Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+% load('MyGammaTable.mat');
+% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
-white = 255; green = [0 255 0];
+white = 255; green = [0 255 0]; blue = [0 0 255];
 
 % Enable alpha blending
 Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -310,7 +292,7 @@ Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 % Define coordinates where to draw the stimuli
 centerX = rect(3)/2; centerY = rect(4)/2;
 % Coordinates for location on left and right side of fixation
-patch =  [centerX centerY];
+patch =  [centerX*(4/5) centerX*(6/5)]; %[leftStimX rightStimX centerY]
 
 Screen('TextStyle', window, 1);
 Screen('TextSize', window, 16);
@@ -365,7 +347,6 @@ end
 startKey = zeros(1,256); startKey(KbName({'ESCAPE'})) = 1;
 PsychHID('KbQueueCreate', deviceNumber, startKey);
 
-
 % Preallocate some variables
 data.estimatedContrast = NaN(p.numTrials, 1);
 data.differenceContrast = NaN(p.numTrials, 1);
@@ -373,19 +354,25 @@ data.responseTime = NaN(p.numTrials, 1);
 
 % Make surround and center textures before trial loop
 surroundStimulus = nan(p.numTrials,1);
-centerStimulus1 = nan(p.numTrials,1);
-centerStimulus2 = nan(p.numTrials,1);
+centerStimulus = nan(p.numTrials,1);
+targetStimulus = nan(p.numTrials,1);
 
 for nTrial = 1:p.numTrials
     surroundTexture(:,:,1) = squeeze(surroundGrating(nTrial,:,:)) * (p.surroundContrast* p.grey ) + p.grey;
-    surroundTexture(:,:,2) = surroundTransparencyMask;
+%     surroundTexture(:,:,2) = surroundTransparencyMask;
     surroundStimulus(nTrial) = Screen('MakeTexture', window, surroundTexture);
     
-    centerTexture1(:,:,1) = squeeze(centerGrating(nTrial,:,:)) * ( p.stim1Contrast * p.grey ) + p.grey;
-    centerStimulus1(nTrial) = Screen('MakeTexture', window, centerTexture1);
-    
-    centerTexture2(:,:,1) = squeeze(centerGrating(nTrial,:,:)) * ( p.stim2Contrast * p.grey ) + p.grey;
-    centerStimulus2(nTrial) = Screen('MakeTexture', window, centerTexture2);  
+    centerTexture(:,:,1) = squeeze(centerGratings(nTrial,:,:)) * ( p.fixedStimContrast * p.grey ) + p.grey;
+    centerTexture(:,:,2) = centerTransparencyMask;
+    centerStimulus(nTrial) = Screen('MakeTexture', window, centerTexture);
+
+    if mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t1 contrast changes (left target)
+        targetTexture(:,:,1) = squeeze(centerGratings(nTrial,:,:)) * ( p.targContrast * p.grey ) + p.grey; 
+    elseif mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t2 contrast changes (right target)
+        targetTexture(:,:,1) = squeeze(centerGratings(nTrial,:,:)) * ( p.targContrast * p.grey ) + p.grey; 
+    end
+    targetTexture(:,:,2) = centerTransparencyMask;
+    targetStimulus(nTrial) = Screen('MakeTexture', window, targetTexture);   
 end
 
 centerMask = Screen('MakeTexture', window, centerTransparencyMask);
@@ -420,214 +407,148 @@ t.welcomeTime = welcomeTime;
 
 for nTrial = 1:p.numTrials
     
-    % Trial Start Trigger
-    if strcmp(useEyeTracker, 'Yes')
-       status = EyeLink('CheckRecording'); % check if eyelink is recording
-       if status ~= 0
-           error('Tracker is not recording.') %if not recording send error message
-       else
-           status = EyeLink('Message','Trigger: ', triggers(nTrial,1)); % if yes, send trigger 
-           if status == 0
-              triggerTimes(nTrial,1) = EyeLink('TrackerTime'); % store time trigger was sent 
-           else
-              error('Message could not be sent.') 
-           end
-       end
-    end
-    
     if nTrial == 1 || nTrial == p.numTrialsPerBlock*(nBlock-1) + 1
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation]);
         Screen('Flip', window);
-        trialStart = GetSecs - expStart;
-        trialTimes(nTrial,1) = trialStart;
         WaitSecs(t.startTime);
     end
-   
-    % Stimulus turns on 
-    
-    
     
     % Draw Fixation
     Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
     Screen('Flip', window);
-    trialStart = GetSecs - expStart;
-    trialTimes(nTrial,1) = trialStart;
-    WaitSecs(t.cueLeadTime);
+    WaitSecs(t.stimLeadTime);
     
-    % Play pre-cue (odd = high tone (T1); even = nothing
-    if mod(p.trialEvents(nTrial,1),2) ~= 0
+    % Turn on stimuli before precue (dur = t.cueLeadTime)
+    for nShift = 1:(t.cueLeadTime/t.flicker)       
+        shift = randsample(1:p.numTrials,1);
+        % Draw centerStimulus1
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+        % Draw centerStimulus2
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4))
+        % Draw Fixation
+        Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+        Screen('Flip', window);       
+        WaitSecs(t.flicker);
+    end
+    
+    % Play pre-cue if valid
+    if p.trialEvents(nTrial,end) == 1
         playSound(pahandle, cueTones(1,:)*soundAmp);
+        preCueTime = GetSecs - expStart;
+        trialTimes(nTrial,2) = preCueTime;
+    end  
+    
+    % Keep stim flickering (dur = t.cueTargetSOA)
+    for nShift = 1:(t.cueTargetSOA/t.flicker)  
+        shift = randsample(1:p.numTrials,1);      
+        % Draw centerStimulus1
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+        % Draw centerStimulus2
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4))
+        % Draw Fixation
+        Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+        Screen('Flip', window);
+        WaitSecs(t.flicker);
     end
     
-    % Pre-cue Trigger
-    if strcmp(useEyeTracker, 'Yes')
-       status = EyeLink('CheckRecording'); % check if eyelink is recording
-       if status ~= 0
-           error('Tracker is not recording.') %if not recording send error message
-       else
-           status = EyeLink('Message','Trigger: ', triggers(nTrial,2)); % if yes, send trigger 
-           if status == 0
-               triggerTimes(nTrial,2) = EyeLink('TrackerTime'); % store time trigger was sent
-           else
-               error('Message could not be sent.') 
-           end
-       end
+    % Flickering Target (dur = t.targetDur)
+    for nShift = 1:(t.targetDur/t.flicker)
+        shift = randsample(1:p.numTrials,1);
+        % Draw surroundStimulus if not baseline condition
+        if p.trialEvents(nTrial,1) ~= 5 || p.trialEvents(nTrial,1) ~= 6  
+            Screen('DrawTexture', window, surroundStimulus(nTrial), [], CenterRectOnPoint([0 0 p.surroundSize p.surroundSize], centerX, centerY), p.trialEvents(nTrial,5))
+            Screen('FillOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)')
+            Screen('FillOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(2), centerY)')
+            Screen('FrameOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)', p.gapSize, p.gapSize)
+            Screen('FrameOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(2), centerY)', p.gapSize, p.gapSize)
+        end
+        
+        % Determine which target to change
+        if mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t1 contrast changes (left target)
+            % Draw centerStimulus1
+            Screen('DrawTexture', window, targetStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+            % Draw centerStimulus2
+            Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4)) 
+        elseif mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t2 contrast changes (right target)
+            % Draw centerStimulus1
+            Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+            % Draw centerStimulus2
+            Screen('DrawTexture', window, targetStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4)) 
+        end
+        
+        % Draw Fixation
+        Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+        Screen('Flip', window);
+        % GetClicks;        
+        % Stim duration
+        WaitSecs(t.flicker);
     end
-    
-    preCueTime = GetSecs - expStart;
-    trialTimes(nTrial,2) = preCueTime;
-    
-    % Cue-target SOA
-    WaitSecs(t.cueTargetSOA);
-    
-    % Draw centerStimulus1
-    Screen('DrawTexture', window, centerMask, [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), patch(2)), p.trialEvents(nTrial,4))
-    Screen('DrawTexture', window, centerStimulus1(nTrial), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), patch(2)), p.trialEvents(nTrial,4))
-    
-    % Draw surroundStimulus if not baseline condition
-    if p.trialEvents(nTrial,1) ~= 5 || p.trialEvents(nTrial,1) ~= 6  
-        Screen('DrawTexture', window, surroundStimulus(nTrial), [], CenterRectOnPoint([0 0 p.surroundSize p.surroundSize], patch(1), patch(2)), p.trialEvents(nTrial,5))
-        Screen('FrameOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), patch(2))', p.gapSize, p.gapSize)
-    end
-    
-    % Draw Fixation
-    Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-    t1Time = Screen('Flip', window);
-%     GetClicks;
-    trialTimes(nTrial,3) = t1Time - expStart;
-    
-%     % T1 Trigger
-%     if strcmp(useEyeTracker, 'Yes')
-%        status = EyeLink('CheckRecording'); % check if eyelink is recording
-%        if status ~= 0
-%            error('Tracker is not recording.') %if not recording send error message
-%        else
-%            status = EyeLink('Message','Trigger: ', triggers(nTrial,3)); % if yes, send trigger 
-%            if status == 0
-%                triggerTimes(nTrial,3) = EyeLink('TrackerTime'); % store time trigger was sent
-%            else
-%                error('Message could not be sent.') 
-%            end
-%        end
-%     end
-    
-    % Stim duration
-    WaitSecs(t.targetDur);
 
-    % Draw Fixation
-    Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+    % Keep stim flickering (dur = t.responseLeadTime)
+    for nShift = 1:(t.responseLeadTime/t.flicker)
+        shift = randsample(1:p.numTrials,1);
+        % Draw centerStimulus1
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+        % Draw centerStimulus2
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4))
+        % Draw Fixation
+        Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+        Screen('Flip', window);
+        WaitSecs(t.flicker);
+    end
+    
+    % Get Response
+    
+%     % Set up button press
+%     PsychHID('KbQueueStart', deviceNumber);
+%     PsychHID('KbQueueFlush');
+%        
+%     % Report: change fixation to allow user to report left/right
+%     
+    Screen('FillOval', window, blue, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
     Screen('Flip', window);
-    
-    % Cue-target SOA interval
-    WaitSecs(t.targetSOA);
-   
-    % Draw centerStimulus2
-    Screen('DrawTexture', window, centerMask, [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), patch(2)), p.trialEvents(nTrial,4))
-    Screen('DrawTexture', window, centerStimulus2(nTrial), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), patch(2)), p.trialEvents(nTrial,4))
-    
-    % Draw surroundStimulus if not baseline condition
-    if p.trialEvents(nTrial,1) ~= 5 || p.trialEvents(nTrial,1) ~= 6  
-        Screen('DrawTexture', window, surroundStimulus(nTrial), [], CenterRectOnPoint([0 0 p.surroundSize p.surroundSize], patch(1), patch(2)), p.trialEvents(nTrial,5))
-        Screen('FrameOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), patch(2))', p.gapSize, p.gapSize)
-    end
-    
-    % Draw Fixation
-    Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-    t2Time = Screen('Flip', window);
-%     GetClicks;
-    trialTimes(nTrial,4) = t2Time - expStart;
-    
-%     % T2 Trigger
-%     if strcmp(useEyeTracker, 'Yes')
-%        status = EyeLink('CheckRecording'); % check if eyelink is recording
-%        if status ~= 0
-%            error('Tracker is not recording.') %if not recording send error message
-%        else
-%            status = EyeLink('Message','Trigger: ', triggers(nTrial,4)); % if yes, send trigger 
-%            if status == 0
-%                triggerTimes(nTrial,4) = EyeLink('TrackerTime'); % store time trigger was sent
-%            else
-%                error('Message could not be sent.') 
-%            end
-%        end
+    GetClicks;
+%     
+%     startTrial = GetSecs - expStart; % get the start time of each trial
+%     
+%     %Clicks / scroll
+% 
+%     % check if esc button has been pressed
+%     [keyIsDown, keyCode] = PsychHID('KbQueueCheck', deviceNumber); %check response
+%     key = find(keyCode);
+%     if key == KbName('ESCAPE') % windows = 'esc', mac = 'ESCAPE' If user presses ESCAPE, exit the program.
+%         Screen('LoadNormalizedGammaTable', window, OriginalCLUT);
+%         Screen('CloseAll');
+%         ListenChar(1); % % Go back to unsuppressed mode
+%         FlushEvents('keyDown', deviceNumber);
+%         error('User exited program.');
 %     end
-    
-   
-    % Draw Fixation
-    Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-    trialTimes(nTrial,end) = Screen('Flip', window);
-    WaitSecs(t.responseLeadTime);
-    
-    % Set up button press
-    PsychHID('KbQueueStart', deviceNumber);
-    PsychHID('KbQueueFlush');
-       
-    % Report: change fixation to allow user to report left/right
-    
-    Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-    Screen('Flip', window);
-    
-    startTrial = GetSecs - expStart; % get the start time of each trial
-    
-    %Clicks / scroll
 
-    % check if esc button has been pressed
-    [keyIsDown, keyCode] = PsychHID('KbQueueCheck', deviceNumber); %check response
-    key = find(keyCode);
-    if key == KbName('ESCAPE') % windows = 'esc', mac = 'ESCAPE' If user presses ESCAPE, exit the program.
-        Screen('LoadNormalizedGammaTable', window, OriginalCLUT);
-        Screen('CloseAll');
-        ListenChar(1); % % Go back to unsuppressed mode
-        FlushEvents('keyDown', deviceNumber);
-        error('User exited program.');
-    end
-
-
-    trialEnd = GetSecs - expStart;
-    
-    trialTimes(nTrial,end) = trialEnd;
-    
-    % Trial End Trigger
-    if strcmp(useEyeTracker, 'Yes')
-       status = EyeLink('CheckRecording'); % check if eyelink is recording
-       if status ~= 0
-           error('Tracker is not recording.') %if not recording send error message
-       else
-           status = EyeLink('Message','Trigger: ', triggers(nTrial, 6)); % if yes, send trigger 
-           if status == 0
-               triggerTimes(nTrial,6) = EyeLink('TrackerTime'); % store time trigger was sent
-           else
-               error('Message could not be sent.') 
-           end
-       end
-    end
-    
     % Present center fixation; get ready for next trial
-    Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation]);
     Screen('Flip', window);
-    
     WaitSecs(t.iti);
  
     %%% Rest period
     if nTrial == p.numTrialsPerBreak*nBreak && nTrial ~= p.numTrialsPerBlock*nBlock
         rest = GetSecs;
         
-        restText = 'You can take a short break now, or press the dial to continue.';
+        restText = 'You can take a short break now, or press the UP arrow to continue.';
         DrawFormattedText(window, restText, 'center', 'center', white);
         Screen('Flip', window);
         
         nBreak = nBreak+1; 
         
         pmButtonBreak = 0;
+         
+%         while 1
+%             [pmButtonBreak, a] = PsychPowerMate('Get', powermate);
+%             if pmButtonBreak == 1
+%                 break;
+%             end
+%         end
         
-        while 1
-            [pmButtonBreak, a] = PsychPowerMate('Get', powermate);
-            if pmButtonBreak == 1
-                break;
-            end
-        end
-        
-        t.restTime = (GetSecs-rest)/60;         
+        t.restTime = (GetSecs-rest)/60;
+        GetClicks;
     elseif nTrial == p.numTrialsPerBlock*nBlock
         rest = GetSecs;
         
@@ -640,18 +561,17 @@ for nTrial = 1:p.numTrials
         nBreak = nBreak+1; 
         
         pmButtonBreak = 0;
+         
+%         while 1
+%             [pmButtonBreak, a] = PsychPowerMate('Get', powermate);
+%             if pmButtonBreak == 1
+%                 break;
+%             end
+%         end
         
-        while 1
-            [pmButtonBreak, a] = PsychPowerMate('Get', powermate);
-            if pmButtonBreak == 1
-                break;
-            end
-        end
-        
-        t.restTime = (GetSecs-rest)/60;      
+        t.restTime = (GetSecs-rest)/60;
+        GetClicks;
     end 
- 
-    
 end
 
 t.endTime = GetSecs-expStart; %Get endtime of the experiment in seconds
