@@ -32,11 +32,11 @@ useEyeTracker = 'No';
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames] = GetKeyboardIndices;
-deviceString = 'Corsair Corsair K95W Gaming Keyboard';
+% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
 % deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
-% deviceString = 'Apple Internal Keyboard / Trackpad';
+deviceString = 'Apple Internal Keyboard / Trackpad';
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -102,8 +102,9 @@ p.stimConfigurationsNames = {'CollSrrndL' 'CollSrrndUnR' 'OrthSrrndL' 'OrthSrrnd
 p.numContrasts = 1;
 p.minContrast = 0.1;
 p.maxContrast = 0.75;
-p.stim1Contrast = 0.3;
-p.stim2Contrsat = p.stim1Contrast;
+p.fixedStimContrast = 0.3;
+p.stim1Contrast = 0.75;
+p.stim2Contrast = p.stim1Contrast;
 p.surroundContrast = 1; 
 
 % size parameters
@@ -121,9 +122,9 @@ p.innerFixation = p.outerFixation/1.5;
 % 3 = surround contrast
 % 4 = orientation gratings
 
-[F1] = BalanceFactors(p.numBlocks, 0, p.stimConfigurations);
+[F1, F2, F3] = BalanceFactors(p.numBlocks, 0, p.stimConfigurations, p.stim1Contrast, p.stim2Contrast);
 
-p.trialEvents = [F1];
+p.trialEvents = [F1, F2, F3];
 
 p.numTrialsPerConfig = sum(p.trialEvents(:,1) == 1);
 
@@ -137,16 +138,25 @@ p.targetsOrientation = [repmat(45,p.numTrialsPerBlock*(p.numBlocks/2),1);repmat(
 % surround orientation dependent on collinear/orthogonal condition
 p.surroundOrientation = nan(size(p.targetsOrientation));
 
-for n = 1:p.numTrials
-   if p.trialEvents(n,1) == 3 || p.trialEvents(n,1) == 4 %  add 90 degrees if orthogonal trial
-       p.surroundOrientation(n) = p.targetsOrientation(n) + 90;
-   elseif p.trialEvents(n,1) == 5 || p.trialEvents(n,1) == 6 % surround = target if colinear
-       p.surroundOrientation(n) = p.targetsOrientation(n);
+for nTrial = 1:p.numTrials
+   if p.trialEvents(nTrial,1) == 3 || p.trialEvents(nTrial,1) == 4 %  add 90 degrees if orthogonal trial
+       p.surroundOrientation(nTrial) = p.targetsOrientation(nTrial) + 90;
+   elseif p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6 % surround = target if colinear
+       p.surroundOrientation(nTrial) = p.targetsOrientation(nTrial);
    end
 end
 
 whichOrientation =  [p.targetsOrientation p.surroundOrientation];
 p.trialEvents(:, end+1:end+2) = whichOrientation;
+
+% Determine target contrast
+for nTrial = 1:p.numTrials
+    if mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t1 contrast doesn't change
+        p.trialEvents(nTrial,2) = p.fixedStimContrast;
+    elseif mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t2 contrast doesn't change
+        p.trialEvents(nTrial,3) = p.fixedStimContrast;
+    end
+end
 
 % Assign cue validity for each trial
 p.trialCuesNames = {'Attended' 'Unattended'};
@@ -269,36 +279,25 @@ surroundTransparencyMask = zeros(p.surroundSize); surroundTransparencyMask(eccen
 [Xc,Yc] = meshgrid(0:(p.centerSize-1), 0:(p.centerSize-1));
 [Xs,Ys] = meshgrid(0:(p.surroundSize-1), 0:(p.surroundSize-1));
 
-% % Make checkerboard
-% checker1 = square( p.freqSurround*2*pi/p.surroundSize * ( Xs.*sin(p.orientationChecker(1)*(pi/180)) + Ys.*cos(p.orientationChecker(1)*(pi/180)) ) - p.phaseChecker(1) );
-% checker2 = square( p.freqSurround*2*pi/p.surroundSize * ( Xs.*sin(p.orientationChecker(2)*(pi/180)) + Ys.*cos(p.orientationChecker(2)*(pi/180)) ) - p.phaseChecker(2) );
-% fullChecker = (checker1 .* checker2) .* surroundGaussian;
-% fullCheckerNeg = fullChecker*-1;
-% fullChecker = fullChecker * (p.grey-1) + p.grey;
-% fullCheckerNeg = fullCheckerNeg * (p.grey-1) + p.grey;
-
 % Make actual gratings
 centerGrating = NaN(p.numTrials*2, p.centerSize, p.centerSize);
 surroundGrating = NaN(p.numTrials*2, p.surroundSize, p.surroundSize);
 centerTarget = NaN(p.numTrials*2, p.centerSize, p.centerSize);
-% surroundTarget = NaN(p.numTrials*2, p.surroundSize, p.surroundSize);
 
-for n = 1:p.numTrials
-    center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(n,1)));
-    centerGrating(n,:,:) = (center .* centerGaussian);
+for nTrial = 1:p.numTrials
+    center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nTrial,1)));
+    centerGrating(nTrial,:,:) = (center .* centerGaussian);
     
-    surround = (sin(p.freqSurround*2*pi/p.surroundSize*(Xs.*sin(p.orientation*(pi/180))+Ys.*cos(p.orientation*(pi/180)))-p.phase(n,2)));
-    surroundGrating(n,:,:) = (surround .* surroundGaussian);
+    surround = (sin(p.freqSurround*2*pi/p.surroundSize*(Xs.*sin(p.orientation*(pi/180))+Ys.*cos(p.orientation*(pi/180)))-p.phase(nTrial,2)));
+    surroundGrating(nTrial,:,:) = (surround .* surroundGaussian);
     
-    targetCenter = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(n,3)));
-    centerTarget(n,:,:) = (targetCenter .* centerGaussian);
-    
-%     targetSurround = (sin(p.freqSurround*2*pi/p.surroundSize*(Xs.*sin(p.orientation*(pi/180))+Ys.*cos(p.orientation*(pi/180)))-p.phase(n,4)));
-%     surroundTarget(n,:,:) = (targetSurround .* surroundGaussian);
+    targetCenter = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nTrial,3)));
+    centerTarget(nTrial,:,:) = (targetCenter .* centerGaussian);
+
 end
 
 %% WINDOW SETUP
-[window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
+[window,rect] = Screen('OpenWindow', max(screens), p.grey,[0 0 600 400],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
 load('MyGammaTable.mat');
 Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
@@ -350,8 +349,8 @@ Screen('Flip', window);
 welcomeStart = GetSecs;
 
 % play tones for participant before experiment starts
-for n=1:size(cueTones,1)
-   playSound(pahandle, cueTones(n,:)*soundAmp);
+for nCue=1:size(cueTones,1)
+   playSound(pahandle, cueTones(nCue,:)*soundAmp);
    WaitSecs(1);
 end
 
@@ -377,16 +376,16 @@ surroundStimulus = nan(p.numTrials,1);
 centerStimulus1 = nan(p.numTrials,1);
 centerStimulus2 = nan(p.numTrials,1);
 
-for n = 1:p.numTrials
-    surroundTexture(:,:,1) = squeeze(surroundGrating(n,:,:)) * (p.surroundContrast* p.grey ) + p.grey;
+for nTrial = 1:p.numTrials
+    surroundTexture(:,:,1) = squeeze(surroundGrating(nTrial,:,:)) * (p.surroundContrast* p.grey ) + p.grey;
     surroundTexture(:,:,2) = surroundTransparencyMask;
-    surroundStimulus(n) = Screen('MakeTexture', window, surroundTexture);
+    surroundStimulus(nTrial) = Screen('MakeTexture', window, surroundTexture);
     
-    centerTexture1(:,:,1) = squeeze(centerGrating(n,:,:)) * ( p.stim1Contrast * p.grey ) + p.grey;
-    centerStimulus1(n) = Screen('MakeTexture', window, centerTexture1);
+    centerTexture1(:,:,1) = squeeze(centerGrating(nTrial,:,:)) * ( p.stim1Contrast * p.grey ) + p.grey;
+    centerStimulus1(nTrial) = Screen('MakeTexture', window, centerTexture1);
     
-    centerTexture2(:,:,1) = squeeze(centerGrating(n,:,:)) * ( p.stim2Contrast * p.grey ) + p.grey;
-    centerStimulus2(n) = Screen('MakeTexture', window, centerTexture2);  
+    centerTexture2(:,:,1) = squeeze(centerGrating(nTrial,:,:)) * ( p.stim2Contrast * p.grey ) + p.grey;
+    centerStimulus2(nTrial) = Screen('MakeTexture', window, centerTexture2);  
 end
 
 centerMask = Screen('MakeTexture', window, centerTransparencyMask);
@@ -444,6 +443,9 @@ for nTrial = 1:p.numTrials
         WaitSecs(t.startTime);
     end
    
+    % Stimulus turns on 
+    
+    
     
     % Draw Fixation
     Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
@@ -494,20 +496,20 @@ for nTrial = 1:p.numTrials
 %     GetClicks;
     trialTimes(nTrial,3) = t1Time - expStart;
     
-    % T1 Trigger
-    if strcmp(useEyeTracker, 'Yes')
-       status = EyeLink('CheckRecording'); % check if eyelink is recording
-       if status ~= 0
-           error('Tracker is not recording.') %if not recording send error message
-       else
-           status = EyeLink('Message','Trigger: ', triggers(nTrial,3)); % if yes, send trigger 
-           if status == 0
-               triggerTimes(nTrial,3) = EyeLink('TrackerTime'); % store time trigger was sent
-           else
-               error('Message could not be sent.') 
-           end
-       end
-    end
+%     % T1 Trigger
+%     if strcmp(useEyeTracker, 'Yes')
+%        status = EyeLink('CheckRecording'); % check if eyelink is recording
+%        if status ~= 0
+%            error('Tracker is not recording.') %if not recording send error message
+%        else
+%            status = EyeLink('Message','Trigger: ', triggers(nTrial,3)); % if yes, send trigger 
+%            if status == 0
+%                triggerTimes(nTrial,3) = EyeLink('TrackerTime'); % store time trigger was sent
+%            else
+%                error('Message could not be sent.') 
+%            end
+%        end
+%     end
     
     % Stim duration
     WaitSecs(t.targetDur);
@@ -535,20 +537,20 @@ for nTrial = 1:p.numTrials
 %     GetClicks;
     trialTimes(nTrial,4) = t2Time - expStart;
     
-    % T2 Trigger
-    if strcmp(useEyeTracker, 'Yes')
-       status = EyeLink('CheckRecording'); % check if eyelink is recording
-       if status ~= 0
-           error('Tracker is not recording.') %if not recording send error message
-       else
-           status = EyeLink('Message','Trigger: ', triggers(nTrial,4)); % if yes, send trigger 
-           if status == 0
-               triggerTimes(nTrial,4) = EyeLink('TrackerTime'); % store time trigger was sent
-           else
-               error('Message could not be sent.') 
-           end
-       end
-    end
+%     % T2 Trigger
+%     if strcmp(useEyeTracker, 'Yes')
+%        status = EyeLink('CheckRecording'); % check if eyelink is recording
+%        if status ~= 0
+%            error('Tracker is not recording.') %if not recording send error message
+%        else
+%            status = EyeLink('Message','Trigger: ', triggers(nTrial,4)); % if yes, send trigger 
+%            if status == 0
+%                triggerTimes(nTrial,4) = EyeLink('TrackerTime'); % store time trigger was sent
+%            else
+%                error('Message could not be sent.') 
+%            end
+%        end
+%     end
     
    
     % Draw Fixation
