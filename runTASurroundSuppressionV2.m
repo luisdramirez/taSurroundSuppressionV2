@@ -47,7 +47,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-deviceNumber = 8;
+% deviceNumber = 8;
 % Setup key presse
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
 
