@@ -240,9 +240,9 @@ surroundGaussian = ones(p.surroundSize); % surroundGaussian(eccen <= (p.surround
 [Xs,Ys] = meshgrid(0:(p.surroundSize-1), 0:(p.surroundSize-1));
 
 % Make actual gratings
-centerGratings = NaN(p.numTrials*2, p.centerSize, p.centerSize);
-targetGratings = NaN(p.numTrials*2,(t.targetDur/t.flicker), p.centerSize, p.centerSize);
-surroundGrating = NaN(p.numTrials, p.surroundSize, p.surroundSize);
+centerGratings = NaN(numPhases, p.centerSize, p.centerSize);
+targetGratings = NaN(numPhases,(t.targetDur/t.flicker), p.centerSize, p.centerSize);
+surroundGrating = NaN(numPhases, p.surroundSize, p.surroundSize);
 
 for nPhase = 1:numPhases
     center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nPhase,1)));
