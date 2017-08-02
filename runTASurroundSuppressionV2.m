@@ -32,8 +32,8 @@ useEyeTracker = 'No';
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-deviceString = 'Corsair Corsair K95W Gaming Keyboard';
-% deviceString = 'Apple Inc. Apple Keyboard';
+% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
+deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
 % deviceString = 'Apple Internal Keyboard / Trackpad';
@@ -240,9 +240,9 @@ surroundGaussian = ones(p.surroundSize); % surroundGaussian(eccen <= (p.surround
 [Xs,Ys] = meshgrid(0:(p.surroundSize-1), 0:(p.surroundSize-1));
 
 % Make actual gratings
-centerGratings = NaN(p.numTrials*2, p.centerSize, p.centerSize);
-targetGratings = NaN(p.numTrials*2,(t.targetDur/t.flicker), p.centerSize, p.centerSize);
-surroundGrating = NaN(p.numTrials*2, p.surroundSize, p.surroundSize);
+centerGratings = NaN(numPhases, p.centerSize, p.centerSize);
+targetGratings = NaN(numPhases,(t.targetDur/t.flicker), p.centerSize, p.centerSize);
+surroundGrating = NaN(numPhases, p.surroundSize, p.surroundSize);
 
 for nPhase = 1:numPhases
     center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nPhase,1)));
@@ -255,8 +255,8 @@ end
 %% WINDOW SETUP
 [window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-% load('MyGammaTable.mat');
-% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+load('MyGammaTable.mat');
+Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
 white = 255; green = [0 255 0]; blue = [0 0 255];
 
