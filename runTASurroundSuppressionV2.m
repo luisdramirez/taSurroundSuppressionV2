@@ -23,7 +23,7 @@ Screen('Preference', 'SkipSyncTests', 0);
 p.subject = 'Pre-Pilot_LR';
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 1;
+p.repetitions = 8;
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numBreaks = p.numBlocks*2;
 
@@ -214,38 +214,10 @@ t.responseTime = []; % (s)
 t.cueTargetSOA = 1; % (s)
 t.cueLeadTime = 1; %(s)
 t.responseLeadTime = 1; % (s)
-t.trialDur = t.cueLeadTime + t.cueTargetSOA*2 + t.targetDur*2 + t.responseLeadTime; % duration of the longest trial
-t.trialDurLongest = t.trialDur + t.startTime;
-
-jit = 0:0.2:1;
-trialJit = Shuffle(repmat(jit,1, ceil(p.numTrials/numel(jit))));
-t.trialJit = trialJit(1:p.numTrials);
-
-t.runDur = t.trialDur*p.numTrials + sum(t.trialJit);
-% trialStartTimes = (0:t.trialDur:t.trialDur*p.numTrials-t.trialDur) + cumsum([0 t.trialJit(1:end-1)]);
-% 
-% targetStartTimes = [];
-% cueStartTimes = [];
-% 
-% % calculate theoretical timing of events
-% for n = 1:p.numTrials
-%     targetTimes = [0 t.targetSOA];
-%     cueTimes = [targetTimes(1)-t.cueTargetSOA targetTimes(2)+t.cueTargetSOA];
-%     
-%     targetTimes = targetTimes + trialStartTimes(n) + t.trialJit(n);
-%     targetStartTimes = [targetStartTimes; targetTimes'];
-%     
-%     cueTimes = cueTimes + trialStartTimes(n) + t.trialJit(n);
-%     cueStartTimes = [cueStartTimes; cueTimes'];
-% end
-% 
-% t.targetStartTimes = targetStartTimes;
-% t.cueStartTimes = cueStartTimes;
-% t.targetEndTimes = targetStartTimes + t.targetDur;
-% p.numTargets = numel(targetStartTimes);
-
+t.trialDur = t.cueLeadTime + t.cueTargetSOA*2 + t.targetDur*2 + t.responseLeadTime; % duration of the longest trial (sS)
+t.trialDurLongest = t.trialDur + t.startTime; % (2)
+t.runDur = t.trialDur*p.numTrials; % (s)
 t.flicker = 0.025; % (s)
-
 %% CREATE STIMULI
 % make mask to create circle for the center grating
 [x,y] = meshgrid((-p.centerSize/2):(p.centerSize/2)-1, (-p.centerSize/2):(p.centerSize/2)-1);
@@ -315,11 +287,11 @@ end
 % Provide our prior knowledge to QuestCreate, and receive the data struct "q".
 tGuess = p.targContrast; % intial guess of contrast in log scale
 tGuessSd= log10(0.5); % convert to log space!!, Start with a large sd
-pThreshold = 0.80; % threshold
+p.pThreshold = 0.80; % threshold
 beta = 2.5; delta = 1/p.numTrials; gamma = 1/2; % gamma 1/amount of answer possibilities
-qSurr = QuestCreate(tGuess, tGuessSd, pThreshold, beta, delta, gamma);
+qSurr = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma);
 qSurr.normalizePdf = 1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
-qNSurr = QuestCreate(tGuess, tGuessSd, pThreshold, beta, delta, gamma);
+qNSurr = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma);
 qNSurr.normalizePdf = 1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
 
 % Draw some text to the screen first outside of the experimental loop:
