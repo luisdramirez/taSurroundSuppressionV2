@@ -31,7 +31,7 @@ useEyeTracker = 'No';
 
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
-[keyBoardIndices, productNames] = GetKeyboardIndices;
+[keyBoardIndices, productNames, ~] = GetKeyboardIndices;
 deviceString = 'Corsair Corsair K95W Gaming Keyboard';
 % deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
@@ -47,6 +47,9 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
+deviceNumber = 8;
+% Setup key presse
+keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
 
 % Set directories
 expDir = pwd; % Set the experimental directory to the current directory 'pwd'
@@ -99,11 +102,8 @@ p.stimConfigurations = [1 2 3 4 5 6];
 p.stimConfigurationsNames = {'CollSrrndL' 'CollSrrndR' 'OrthSrrndL' 'OrthSrrndR' 'noSrrndL' 'noSrrndR'};
 
 % contrast parameters
-p.numContrasts = 1;
-p.minContrast = 0.1;
-p.maxContrast = 0.75;
-p.fixedStimContrast = 0.2; 
-p.targContrast = 0.75; % the increment contrast
+p.fixedStimContrast = 0.2;
+p.targContrast = log10(0.75);
 p.surroundContrast = 1; 
 
 % size parameters
@@ -121,9 +121,9 @@ p.innerFixation = p.outerFixation/1.5;
 % 3 = surround contrast
 % 4 = orientation gratings
 
-[F1, F2, F3] = BalanceFactors(p.numBlocks, 0, p.stimConfigurations, p.targContrast, p.targContrast);
+[F1] = BalanceFactors(p.numBlocks, 0, p.stimConfigurations);
 
-p.trialEvents = [F1, F2, F3];
+p.trialEvents = [F1];
 
 p.numTrialsPerConfig = sum(p.trialEvents(:,1) == 1);
 
@@ -148,14 +148,16 @@ end
 whichOrientation =  [p.targetsOrientation p.surroundOrientation];
 p.trialEvents(:, end+1:end+2) = whichOrientation;
 
-% Determine target contrast
+% Determine target column
+whichTarget = nan(p.numTrials,1);
 for nTrial = 1:p.numTrials
     if mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t1 contrast doesn't change (right target)
-        p.trialEvents(nTrial,2) = p.fixedStimContrast;
+        whichTarget(nTrial,1) = 2;
     elseif mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t2 contrast doesn't change (left target)
-        p.trialEvents(nTrial,3) = p.fixedStimContrast;
+        whichTarget(nTrial,1) = 1;
     end
 end
+p.trialEvents(:,end+1) = whichTarget;
 
 % Assign cue validity for each trial
 p.trialCuesNames = {'Attended' 'Unattended'};
@@ -175,7 +177,6 @@ end
 
 p.trialEvents(:,end+1) = trialCues; % store trial cues at the end trialEvents
 
-
 % Check trial and cue distribution
 trial_cueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); % [validity x configuration]
 
@@ -191,8 +192,8 @@ end
 
 trial_cueDistrib
 
-p.trialEvents % [stimConfiguration, t1Contrast, t2Contrast, targOrientation, surrOrientation, cueValidity]
-% p.trialEvents = Shuffle(p.trialEvents,2);
+p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, cueValidity]
+p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents
 p.stimConfigurationsNames 
 
@@ -201,10 +202,11 @@ freq = 2;
 p.freq = p.centerSize/p.pixPerDeg * freq;
 p.freqSurround = p.surroundSize/p.pixPerDeg * freq;
 p.orientation = 0;
-p.phase = randsample(1:180,p.numTrials*2, true); % [centerPhase surrPhase]
-p.phase = reshape(p.phase, [p.numTrials 2]);
+numPhases = 20;
+p.phase = randsample(1:180,numPhases*2, true); % [centerPhase surrPhase]
+p.phase = reshape(p.phase, [numPhases 2]);
 %% TIMING PARAMETERS
-t.targetDur = .5; % (s)
+t.targetDur = .250; % (s)
 t.iti = 1; % (s)
 t.startTime = 2; % (s)
 t.stimLeadTime = 1; % (s)
@@ -270,12 +272,12 @@ centerGratings = NaN(p.numTrials*2, p.centerSize, p.centerSize);
 targetGratings = NaN(p.numTrials*2,(t.targetDur/t.flicker), p.centerSize, p.centerSize);
 surroundGrating = NaN(p.numTrials*2, p.surroundSize, p.surroundSize);
 
-for nTrial = 1:p.numTrials
-    center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nTrial,1)));
-    centerGratings(nTrial,:,:) = (center .* centerGaussian);
+for nPhase = 1:numPhases
+    center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nPhase,1)));
+    centerGratings(nPhase,:,:) = (center .* centerGaussian);
     
-    surround = (sin(p.freqSurround*2*pi/p.surroundSize*(Xs.*sin(p.orientation*(pi/180))+Ys.*cos(p.orientation*(pi/180)))-p.phase(nTrial,2)));
-    surroundGrating(nTrial,:,:) = (surround .* surroundGaussian);
+    surround = (sin(p.freqSurround*2*pi/p.surroundSize*(Xs.*sin(p.orientation*(pi/180))+Ys.*cos(p.orientation*(pi/180)))-p.phase(nPhase,2)));
+    surroundGrating(nPhase,:,:) = (surround .* surroundGaussian);
 end
 
 %% WINDOW SETUP
@@ -307,13 +309,24 @@ end
 % [status] = Eyelink('CheckRecording') % 0 if recording, 1 if not recording 
 % [time] = Eyelink('TrackerTime') % time since the tracker application started
 %% START THE EXPERIMENT
+
+% Initialize Quest
+
+% Provide our prior knowledge to QuestCreate, and receive the data struct "q".
+tGuess = p.targContrast; % intial guess of contrast in log scale
+tGuessSd= log10(0.5); % convert to log space!!, Start with a large sd
+pThreshold = 0.80; % threshold
+beta = 2.5; delta = 1/p.numTrials; gamma = 1/2; % gamma 1/amount of answer possibilities
+qSurr = QuestCreate(tGuess, tGuessSd, pThreshold, beta, delta, gamma);
+qSurr.normalizePdf = 1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
+qNSurr = QuestCreate(tGuess, tGuessSd, pThreshold, beta, delta, gamma);
+qNSurr.normalizePdf = 1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
+
 % Draw some text to the screen first outside of the experimental loop:
 
 % Experiment setup
-space = zeros(1,256); space(KbName('Space')) = 1;
-PsychHID('KbQueueCreate',deviceNumber, space);
+PsychHID('KbQueueCreate', deviceNumber);
 PsychHID('KbQueueStart', deviceNumber);
-
 
 welcomeText = ['Welcome!' '\n' '\n'...
     '' '\n' '\n'...
@@ -322,9 +335,9 @@ welcomeText = ['Welcome!' '\n' '\n'...
     'An auditory cue (pre-cue) will indicate when a change will occur.' '\n' '\n' ...
     'On most trials the center targets will be accompanied by a surround stimulus, while on some the surround stimulus is absent.' '\n' '\n' ...
     'Additionally, on some trials there will be no auditory cue.' '\n' '\n' ...
-    'When asked to, report which target the change in contrast occured.' '\n' '\n' ...
+    'When asked to, report which target the change in contrast occured by pressing either the LEFT or RIGHT arrow key.' '\n' '\n' ...
     'Be sure to always maintain steady fixation on the green dot! ' '\n' '\n' '\n' ...
-    'Press the UP arrow to continue.' '\n' '\n' ];
+    'Press the DOWN arrow key to continue.' '\n' '\n' ];
 
 DrawFormattedText(window, welcomeText, 'center', 'center', 255);
 Screen('Flip', window);
@@ -336,43 +349,33 @@ for nCue=1:size(cueTones,1)
    WaitSecs(1);
 end
 
-% while 1
-%     [pmButton, ~] = PsychPowerMate('Get', powermate);
-%     if pmButton == 1
-%         break;
-%     end
-% end
+while 1
+   [pressed, firstPress] = PsychHID('KbQueueCheck', deviceNumber); % check response
+   if pressed == 1;
+       break;
+   end
+end
 
-% Make sure we can press esc to quit the experiment
-startKey = zeros(1,256); startKey(KbName({'ESCAPE'})) = 1;
-PsychHID('KbQueueCreate', deviceNumber, startKey);
-
-% Preallocate some variables
-data.estimatedContrast = NaN(p.numTrials, 1);
-data.differenceContrast = NaN(p.numTrials, 1);
-data.responseTime = NaN(p.numTrials, 1);
+PsychHID('KbQueueStop', deviceNumber);
+ 
+% Preallocate some variables for response data
+data.rightwrong = zeros(p.numTrials,1);
+data.cThresholdsSurr = nan(p.numTrials,1);
+data.cThresholdsNSurr = nan(p.numTrials,1);
 
 % Make surround and center textures before trial loop
-surroundStimulus = nan(p.numTrials,1);
-centerStimulus = nan(p.numTrials,1);
-targetStimulus = nan(p.numTrials,1);
+surroundStimulus = nan(numPhases,1);
+centerStimulus = nan(numPhases,1);
+targetStimulus = nan(numPhases,1);
 
-for nTrial = 1:p.numTrials
-    surroundTexture(:,:,1) = squeeze(surroundGrating(nTrial,:,:)) * (p.surroundContrast* p.grey ) + p.grey;
+for nPhase = 1:numPhases
+    surroundTexture(:,:,1) = squeeze(surroundGrating(nPhase,:,:)) * (p.surroundContrast* p.grey ) + p.grey;
 %     surroundTexture(:,:,2) = surroundTransparencyMask;
-    surroundStimulus(nTrial) = Screen('MakeTexture', window, surroundTexture);
+    surroundStimulus(nPhase) = Screen('MakeTexture', window, surroundTexture);
     
-    centerTexture(:,:,1) = squeeze(centerGratings(nTrial,:,:)) * ( p.fixedStimContrast * p.grey ) + p.grey;
+    centerTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.fixedStimContrast * p.grey ) + p.grey;
     centerTexture(:,:,2) = centerTransparencyMask;
-    centerStimulus(nTrial) = Screen('MakeTexture', window, centerTexture);
-
-    if mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t1 contrast changes (left target)
-        targetTexture(:,:,1) = squeeze(centerGratings(nTrial,:,:)) * ( p.targContrast * p.grey ) + p.grey; 
-    elseif mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t2 contrast changes (right target)
-        targetTexture(:,:,1) = squeeze(centerGratings(nTrial,:,:)) * ( p.targContrast * p.grey ) + p.grey; 
-    end
-    targetTexture(:,:,2) = centerTransparencyMask;
-    targetStimulus(nTrial) = Screen('MakeTexture', window, targetTexture);   
+    centerStimulus(nPhase) = Screen('MakeTexture', window, centerTexture);  
 end
 
 centerMask = Screen('MakeTexture', window, centerTransparencyMask);
@@ -388,24 +391,37 @@ end
 
 nBlock = 1;
 nBreak = 1;
-trialTimes = zeros(p.numTrials,6); % [startTrial preCueTime targetTime endTrial]
-
-triggersBase = 1:6;
-triggerTimes = nan(p.numTrials,length(triggersBase));
-triggers = nan(p.numTrials,length(triggersBase));
-
-for nTrial = 1:p.numTrials
-    for nEvent = 1:length(triggersBase)
-        triggerChar = [num2str(nTrial) num2str(triggersBase(nEvent))];
-        triggers(nTrial,nEvent) = str2double(triggerChar);
-    end
-end
 
 expStart = GetSecs; % baseline experiment start time
 welcomeTime = GetSecs - welcomeStart;
 t.welcomeTime = welcomeTime;
 
+PsychHID('KbQueueCreate',deviceNumber);
+
 for nTrial = 1:p.numTrials
+    
+    if p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6 %use surround quest structure
+        p.contrastThreshold = 10^QuestMean(qSurr);
+        data.cThresholdsSurr(nTrial) = p.contrastThreshold;
+    elseif p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6
+        p.contrastThreshold = 10^QuestMean(qNSurr); % use no surround ques structure
+        data.cThresholdsNSurr(nTrial) = p.contrastThreshold;
+    end
+    
+    whichTarget = p.trialEvents(nTrial, end-1);
+    
+    % cap max contrast
+    if p.contrastThreshold > 1
+        p.contrastThreshold = 1;
+    end
+    
+        p.contrastThreshold
+        
+    for nPhase = 1:numPhases
+        targetTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.contrastThreshold * p.grey ) + p.grey; 
+        targetTexture(:,:,2) = centerTransparencyMask;
+        targetStimulus(nPhase) = Screen('MakeTexture', window, targetTexture); 
+    end
     
     if nTrial == 1 || nTrial == p.numTrialsPerBlock*(nBlock-1) + 1
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation]);
@@ -420,11 +436,11 @@ for nTrial = 1:p.numTrials
     
     % Turn on stimuli before precue (dur = t.cueLeadTime)
     for nShift = 1:(t.cueLeadTime/t.flicker)       
-        shift = randsample(1:p.numTrials,1);
+        shift = randsample(1:numPhases,1);
         % Draw centerStimulus1
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
         % Draw centerStimulus2
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4))
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
         Screen('Flip', window);       
@@ -440,23 +456,27 @@ for nTrial = 1:p.numTrials
     
     % Keep stim flickering (dur = t.cueTargetSOA)
     for nShift = 1:(t.cueTargetSOA/t.flicker)  
-        shift = randsample(1:p.numTrials,1);      
+        shift = randsample(1:numPhases,1);      
         % Draw centerStimulus1
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
         % Draw centerStimulus2
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4))
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
         Screen('Flip', window);
         WaitSecs(t.flicker);
     end
     
+    % Set up button press
+    PsychHID('KbQueueStart', deviceNumber);
+    PsychHID('KbQueueFlush', deviceNumber);
+    
     % Flickering Target (dur = t.targetDur)
     for nShift = 1:(t.targetDur/t.flicker)
-        shift = randsample(1:p.numTrials,1);
+        shift = randsample(1:numPhases,1);
         % Draw surroundStimulus if not baseline condition
-        if p.trialEvents(nTrial,1) ~= 5 || p.trialEvents(nTrial,1) ~= 6  
-            Screen('DrawTexture', window, surroundStimulus(nTrial), [], CenterRectOnPoint([0 0 p.surroundSize p.surroundSize], centerX, centerY), p.trialEvents(nTrial,5))
+        if p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6  
+            Screen('DrawTexture', window, surroundStimulus(shift), [], CenterRectOnPoint([0 0 p.surroundSize p.surroundSize], centerX, centerY), p.trialEvents(nTrial,3))
             Screen('FillOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)')
             Screen('FillOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(2), centerY)')
             Screen('FrameOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)', p.gapSize, p.gapSize)
@@ -466,14 +486,14 @@ for nTrial = 1:p.numTrials
         % Determine which target to change
         if mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t1 contrast changes (left target)
             % Draw centerStimulus1
-            Screen('DrawTexture', window, targetStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+            Screen('DrawTexture', window, targetStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
             % Draw centerStimulus2
-            Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4)) 
+            Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2)) 
         elseif mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t2 contrast changes (right target)
             % Draw centerStimulus1
-            Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+            Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
             % Draw centerStimulus2
-            Screen('DrawTexture', window, targetStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4)) 
+            Screen('DrawTexture', window, targetStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2)) 
         end
         
         % Draw Fixation
@@ -486,92 +506,88 @@ for nTrial = 1:p.numTrials
 
     % Keep stim flickering (dur = t.responseLeadTime)
     for nShift = 1:(t.responseLeadTime/t.flicker)
-        shift = randsample(1:p.numTrials,1);
+        shift = randsample(1:numPhases,1);
         % Draw centerStimulus1
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,4))
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
         % Draw centerStimulus2
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,4))
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
         Screen('Flip', window);
         WaitSecs(t.flicker);
     end
-    
-    % Get Response
-    
-%     % Set up button press
-%     PsychHID('KbQueueStart', deviceNumber);
-%     PsychHID('KbQueueFlush');
-%        
-%     % Report: change fixation to allow user to report left/right
-%     
+
     Screen('FillOval', window, blue, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
     Screen('Flip', window);
-    GetClicks;
-%     
-%     startTrial = GetSecs - expStart; % get the start time of each trial
-%     
-%     %Clicks / scroll
-% 
-%     % check if esc button has been pressed
-%     [keyIsDown, keyCode] = PsychHID('KbQueueCheck', deviceNumber); %check response
-%     key = find(keyCode);
-%     if key == KbName('ESCAPE') % windows = 'esc', mac = 'ESCAPE' If user presses ESCAPE, exit the program.
-%         Screen('LoadNormalizedGammaTable', window, OriginalCLUT);
-%         Screen('CloseAll');
-%         ListenChar(1); % % Go back to unsuppressed mode
-%         FlushEvents('keyDown', deviceNumber);
-%         error('User exited program.');
-%     end
+    
+    % Get Behavioral Response
+    check = 0;
+    while 1
+        [pressed, firstPress] = PsychHID('KbQueueCheck', deviceNumber); % check response
+        if pressed
+            whichPress = find(firstPress);
+            
+            if check == 0
+                
+                if any(ismember(whichPress, KbName('ESCAPE')))
+                    Screen('CloseAll');
+                    ListenChar(1);
+                    FlushEvents('keyDown');
+                    error('User exited program.');                   
+                elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 1) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 2) % correct response
+                    data.rightwrong(nTrial) = 1;
+                    check = 1;
+                    PsychHID('KbQueueStop', deviceNumber);
+                else
+                    check = 1;
+                    PsychHID('KbQueueStop', deviceNumber);
+                end
+            end
+            %exit loop if keypress is detected
+            if check == 1
+                break;
+            end
+        end
+        
 
-    % Present center fixation; get ready for next trial
+    end
+    startTrial = GetSecs - expStart; % get the start time of each trial
+    
+    % Update Quest
+    if p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6 % use surr quest structure
+        data.tTest(nTrial) = 10^QuestQuantile(qSurr); % Recommended by Pelli (1987)
+        qSurr = QuestUpdate(qSurr, log10(data.tTest(nTrial)), data.rightwrong(nTrial));
+    elseif p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6 % use no surr quest structure
+        data.tTest(nTrial) = 10^QuestQuantile(qNSurr); % Recommended by Pelli (1987)
+        qNSurr = QuestUpdate(qNSurr, log10(data.tTest(nTrial)), data.rightwrong(nTrial));        
+    end
+    % get ready for next trial
     Screen('Flip', window);
     WaitSecs(t.iti);
  
     %%% Rest period
     if nTrial == p.numTrialsPerBreak*nBreak && nTrial ~= p.numTrialsPerBlock*nBlock
-        rest = GetSecs;
-        
-        restText = 'You can take a short break now, or press the UP arrow to continue.';
+        rest = GetSecs;       
+        restText = 'You can take a short break now, or press the DOWN arrow key to continue.';
         DrawFormattedText(window, restText, 'center', 'center', white);
-        Screen('Flip', window);
-        
-        nBreak = nBreak+1; 
-        
-        pmButtonBreak = 0;
-         
-%         while 1
-%             [pmButtonBreak, a] = PsychPowerMate('Get', powermate);
-%             if pmButtonBreak == 1
-%                 break;
-%             end
-%         end
-        
+        Screen('Flip', window);       
+        nBreak = nBreak+1;        
+        pmButtonBreak = 0;         
+        KbWait;        
         t.restTime = (GetSecs-rest)/60;
-        GetClicks;
     elseif nTrial == p.numTrialsPerBlock*nBlock
-        rest = GetSecs;
-        
+        rest = GetSecs;       
         restText = ['Block ' num2str(nBlock) ' of ' num2str(p.numBlocks) ' completed! You can take a short break now, ' '' '\n' ...
-            'or press the UP arrow to continue' '\n' '\n' ];
+            'or press the DOWN arrow key to continue' '\n' '\n' ];
         DrawFormattedText(window, restText, 'center', 'center', white);
-        Screen('Flip', window);
-        
+        Screen('Flip', window);       
         nBlock = nBlock+1;
-        nBreak = nBreak+1; 
-        
-        pmButtonBreak = 0;
-         
-%         while 1
-%             [pmButtonBreak, a] = PsychPowerMate('Get', powermate);
-%             if pmButtonBreak == 1
-%                 break;
-%             end
-%         end
-        
+        nBreak = nBreak+1;         
+        pmButtonBreak = 0; 
+        KbWait; 
         t.restTime = (GetSecs-rest)/60;
-        GetClicks;
-    end 
+    end
+    
 end
 
 t.endTime = GetSecs-expStart; %Get endtime of the experiment in seconds
@@ -593,27 +609,18 @@ end
 
 % close audio port
 PsychPortAudio('Close', pahandle)
+data.finalThresholdSurr = 10.^QuestMean(qSurr);
+data.finalThresholdNSurr = 10.^QuestMean(qNSurr);
 
-%% timeEvents
-t.trialTimes = trialTimes;
-timeEvents = nan(p.numTrials, size(t.trialTimes,2)-1); %[cueLeadTime cueTargetSOA targetSOA cueTargetSOA responseTime]
+data.cThresholdsSurr = data.cThresholdsSurr(~isnan(data.cThresholdsSurr));
+data.cThresholdsNSurr = data.cThresholdsNSurr(~isnan(data.cThresholdsNSurr));
 
-for nEvent = 1:size(t.trialTimes,2)-1
-    for nTrial = 1:p.numTrials
-        timeEvents(nTrial, nEvent) = t.trialTimes(nTrial,nEvent+1) - t.trialTimes(nTrial,nEvent);
-    end
-end
-
-t.timeEvents = timeEvents;
-
-% Check timing
-% [t.cueStartTimes(1:2:end)+t.welcomeTime t.trialTimes(:,2) t.targetStartTimes(1:2:end)+t.welcomeTime t.trialTimes(:,3) ...
-% t.targetStartTimes(2:2:end)+t.welcomeTime t.trialTimes(:,4) t.cueStartTimes(2:2:end)+t.welcomeTime t.trialTimes(:,5)]
 %% SAVE OUT THE DATA FILE
 cd(dataDir);
 theData(p.runNumber).t = t;
 theData(p.runNumber).p = p;
 theData(p.runNumber).data = data;
+% theData(p.runNumber).q = q;
 eval(['save vTA_surrSuppression_', p.subject, '.mat theData'])
 
 cd(expDir);
