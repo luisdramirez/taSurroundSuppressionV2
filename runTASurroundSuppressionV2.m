@@ -283,19 +283,25 @@ end
 %% START THE EXPERIMENT
 
 % Initialize Quest
-
 % Provide our prior knowledge to QuestCreate, and receive the data struct "q".
 tGuess = p.targContrast; % intial guess of contrast in log scale
 tGuessSd= log10(0.5); % convert to log space!!, Start with a large sd
 p.pThreshold = 0.80; % threshold
 beta = 2.5; delta = 1/p.numTrials; gamma = 1/2; % gamma 1/amount of answer possibilities
-qSurr = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma);
-qSurr.normalizePdf = 1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
-qNSurr = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma);
-qNSurr.normalizePdf = 1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
+
+qSurrCu = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % Surround & Cued Quest Structure
+qNSurrCu = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % No Surround & Cued Quest Structure
+qSurr = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % Surround & No Cue Quest Structure
+qNSurr = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % No Surround & No Cue Quest Structure
+
+
+qSurrCu.normalizePdf = 1;% This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
+qNSurrCu.normalizePdf = 1; 
+qSurr.normalizePdf = 1; 
+qNSurr.normalizePdf = 1; 
+
 
 % Draw some text to the screen first outside of the experimental loop:
-
 % Experiment setup
 PsychHID('KbQueueCreate', deviceNumber);
 PsychHID('KbQueueStart', deviceNumber);
@@ -332,6 +338,9 @@ PsychHID('KbQueueStop', deviceNumber);
  
 % Preallocate some variables for response data
 data.rightwrong = zeros(p.numTrials,1);
+
+data.cThresholdsSurrCu = nan(p.numTrials,1);
+data.cThresholdsNSurrCu = nan(p.numTrials,1);
 data.cThresholdsSurr = nan(p.numTrials,1);
 data.cThresholdsNSurr = nan(p.numTrials,1);
 
@@ -342,7 +351,6 @@ targetStimulus = nan(numPhases,1);
 
 for nPhase = 1:numPhases
     surroundTexture(:,:,1) = squeeze(surroundGrating(nPhase,:,:)) * (p.surroundContrast* p.grey ) + p.grey;
-%     surroundTexture(:,:,2) = surroundTransparencyMask;
     surroundStimulus(nPhase) = Screen('MakeTexture', window, surroundTexture);
     
     centerTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.fixedStimContrast * p.grey ) + p.grey;
@@ -373,10 +381,10 @@ PsychHID('KbQueueCreate',deviceNumber);
 for nTrial = 1:p.numTrials
     
     if p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6 %use surround quest structure
-        p.contrastThreshold = 10^QuestMean(qSurr);
+        p.contrastThreshold = 10^QuestMean(qSurrCu);
         data.cThresholdsSurr(nTrial) = p.contrastThreshold;
     elseif p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6
-        p.contrastThreshold = 10^QuestMean(qNSurr); % use no surround ques structure
+        p.contrastThreshold = 10^QuestMean(qNSurrCu); % use no surround ques structure
         data.cThresholdsNSurr(nTrial) = p.contrastThreshold;
     end
     
@@ -527,11 +535,11 @@ for nTrial = 1:p.numTrials
     
     % Update Quest
     if p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6 % use surr quest structure
-        data.tTest(nTrial) = 10^QuestQuantile(qSurr); % Recommended by Pelli (1987)
-        qSurr = QuestUpdate(qSurr, log10(data.tTest(nTrial)), data.rightwrong(nTrial));
+        data.tTest(nTrial) = 10^QuestQuantile(qSurrCu); % Recommended by Pelli (1987)
+        qSurrCu = QuestUpdate(qSurrCu, log10(data.tTest(nTrial)), data.rightwrong(nTrial));
     elseif p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6 % use no surr quest structure
-        data.tTest(nTrial) = 10^QuestQuantile(qNSurr); % Recommended by Pelli (1987)
-        qNSurr = QuestUpdate(qNSurr, log10(data.tTest(nTrial)), data.rightwrong(nTrial));        
+        data.tTest(nTrial) = 10^QuestQuantile(qNSurrCu); % Recommended by Pelli (1987)
+        qNSurrCu = QuestUpdate(qNSurrCu, log10(data.tTest(nTrial)), data.rightwrong(nTrial));        
     end
     % get ready for next trial
     Screen('Flip', window);
@@ -581,9 +589,15 @@ end
 
 % close audio port
 PsychPortAudio('Close', pahandle)
+
+% save threshold data
+data.finalThresholdSurrCu = 10.^QuestMean(qSurrCu);
+data.finalThresholdNSurrCu = 10.^QuestMean(qNSurrCu);
 data.finalThresholdSurr = 10.^QuestMean(qSurr);
 data.finalThresholdNSurr = 10.^QuestMean(qNSurr);
 
+data.cThresholdsSurrCu = data.cThresholdsSurrCu(~isnan(data.cThresholdsSurrCu));
+data.cThresholdsNSurrCu = data.cThresholdsNSurrCu(~isnan(data.cThresholdsNSurrCu));
 data.cThresholdsSurr = data.cThresholdsSurr(~isnan(data.cThresholdsSurr));
 data.cThresholdsNSurr = data.cThresholdsNSurr(~isnan(data.cThresholdsNSurr));
 
