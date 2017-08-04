@@ -23,7 +23,7 @@ Screen('Preference', 'SkipSyncTests', 0);
 p.subject = 'Pre-Pilot_LR';
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 10;
+p.repetitions = 1;
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numBreaks = p.numBlocks*2;
 
@@ -32,8 +32,8 @@ useEyeTracker = 'No';
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
-deviceString = 'Apple Inc. Apple Keyboard';
+deviceString = 'Corsair Corsair K95W Gaming Keyboard';
+% deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
 % deviceString = 'Apple Internal Keyboard / Trackpad';
@@ -48,7 +48,7 @@ if deviceNumber == 0
     error('No device by that name was detected');
 end
 
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key presse
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -127,11 +127,18 @@ p.innerFixation = p.outerFixation/1.5;
 
 p.trialEvents = [F1];
 
-p.numTrialsPerConfig = sum(p.trialEvents(:,1) == 1);
-
 p.numTrials = size(p.trialEvents,1);
 p.numTrialsPerBreak = p.numTrials/p.numBreaks;
 p.numTrialsPerBlock = p.numTrials/p.numBlocks;
+p.numTrialsPerSC = 40; % trials per staircase
+
+% determine trials per unique config
+for nConfig = 1:2:length(p.stimConfigurations)
+    p.trialsPerConfig(nConfig) = sum( (p.trialEvents(:,1)==nConfig | p.trialEvents(:,1)==nConfig+1) & p.trialEvents(:,end)==1);
+    p.trialsPerConfig(nConfig+1) = sum( (p.trialEvents(:,1)==nConfig | p.trialEvents(:,1)==nConfig+1) & p.trialEvents(:,end)==2);
+end
+
+p.trialsPerConfig %[collAtt collUnAtt orthAtt orthUnAtt noSurrAtt noSurrUnAtt]
 
 % every trial should be a either 45/135; 
 p.targetsOrientation = [repmat(45,p.numTrialsPerBlock*(p.numBlocks/2),1);repmat(135,p.numTrialsPerBlock*(p.numBlocks/2),1)]; % each target has the same orientation
@@ -165,6 +172,8 @@ p.trialEvents(:,end+1) = whichTarget;
 p.trialCuesNames = {'Attended' 'Unattended'};
 
 trialCues = zeros(p.numTrials,1);
+numQStructures = 1:12;
+qStructure = zeros(p.numTrials,1);
 
 % assign cues to sets of unique combinations 
 for nStimConfig = 1:length(p.stimConfigurations)
@@ -176,8 +185,15 @@ for nStimConfig = 1:length(p.stimConfigurations)
        trialCues(configIndx(nUnAtt)) = 2;
    end
 end
+p.trialEvents(:,end+1) = trialCues; % store trial cues
 
-p.trialEvents(:,end+1) = trialCues; % store trial cues at the end trialEvents
+% assign quest structure
+for nTrial=1:2:length(p.numTrials)
+    qStructure(nTrial:nTrial+1) = numQStructures();
+end
+
+p.trialEvents(:,end+1) = qStructures; % store quest structure assignment
+
 
 % Check trial and cue distribution
 trial_cueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); % [validity x configuration]
@@ -185,9 +201,9 @@ trial_cueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); 
 for nConfig = 1:length(p.stimConfigurations)
     for nCue = 1:length(p.trialCuesNames)
         if nCue == 1
-            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == p.numAttTrialsPerComb*p.repetitions;
+            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end-1) == nCue) == p.numAttTrialsPerComb*p.repetitions;
         elseif nCue == 2
-            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == (p.minNumBlocks - p.numAttTrialsPerComb)*p.repetitions;
+            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end-1) == nCue) == (p.minNumBlocks - p.numAttTrialsPerComb)*p.repetitions;
         end
     end
 end
@@ -195,9 +211,12 @@ end
 trial_cueDistrib
 
 p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, cueValidity]
-p.trialEvents = Shuffle(p.trialEvents,2);
+% p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents
-p.stimConfigurationsNames 
+p.stimConfigurationsNames
+
+p.trialsPerConfig = zeros(1,length(p.stimConfigurations));
+
 
 % Define parameters for the stimulus
 freq = 2;
@@ -219,6 +238,7 @@ t.responseLeadTime = 1; % (s)
 t.trialDur = t.cueLeadTime + t.cueTargetSOA*2 + t.targetDur*2 + t.responseLeadTime; % duration of the longest trial (sS)
 t.trialDurLongest = t.trialDur + t.startTime; % (2)
 t.runDur = t.trialDur*p.numTrials; % (s)
+t.runDur/60
 t.flicker = 0.025; % (s)
 %% CREATE STIMULI
 % make mask to create circle for the center grating
@@ -257,8 +277,8 @@ end
 %% WINDOW SETUP
 [window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('MyGammaTable.mat');
-Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+% load('MyGammaTable.mat');
+% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
 white = 255; green = [0 255 0]; blue = [0 0 255];
 
