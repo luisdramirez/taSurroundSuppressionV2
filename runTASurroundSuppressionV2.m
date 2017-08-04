@@ -188,8 +188,13 @@ end
 p.trialEvents(:,end+1) = trialCues; % store trial cues
 
 % assign quest structure
+qCnt = 1;
 for nTrial=1:2:length(p.numTrials)
-    qStructure(nTrial:nTrial+1) = numQStructures();
+    if qCnt > length(numQStructures)
+        qCnt = 1;
+    end
+    qStructure(nTrial:nTrial+1) = numQStructures(qCnt);
+    qCnt = qCnt+1;
 end
 
 p.trialEvents(:,end+1) = qStructures; % store quest structure assignment
