@@ -23,9 +23,10 @@ Screen('Preference', 'SkipSyncTests', 0);
 p.subject = 'Pre-Pilot_LR';
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 3;
+p.repetitions = 20; %20 for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numBreaks = p.numBlocks*2;
+p.numQStructures = 12;
 
 useEyeTracker = 'No';
 
@@ -33,10 +34,10 @@ useEyeTracker = 'No';
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
 % deviceString = 'Corsair Corsair K95W Gaming Keyboard';
-% deviceString = 'Apple Inc. Apple Keyboard';
+deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
-deviceString = 'Apple Internal Keyboard / Trackpad';
+% deviceString = 'Apple Internal Keyboard / Trackpad';
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -130,15 +131,7 @@ p.trialEvents = [F1];
 p.numTrials = size(p.trialEvents,1);
 p.numTrialsPerBreak = p.numTrials/p.numBreaks;
 p.numTrialsPerBlock = p.numTrials/p.numBlocks;
-p.numTrialsPerSC = 40; % trials per staircase
-
-% determine trials per unique config
-for nConfig = 1:2:length(p.stimConfigurations)
-    p.trialsPerConfig(nConfig) = sum( (p.trialEvents(:,1)==nConfig | p.trialEvents(:,1)==nConfig+1) & p.trialEvents(:,end)==1);
-    p.trialsPerConfig(nConfig+1) = sum( (p.trialEvents(:,1)==nConfig | p.trialEvents(:,1)==nConfig+1) & p.trialEvents(:,end)==2);
-end
-
-p.trialsPerConfig %[collAtt collUnAtt orthAtt orthUnAtt noSurrAtt noSurrUnAtt]
+p.minNumTrialsPerSC = p.repetitions*2; 
 
 % every trial should be a either 45/135; 
 p.targetsOrientation = [repmat(45,p.numTrialsPerBlock*(p.numBlocks/2),1);repmat(135,p.numTrialsPerBlock*(p.numBlocks/2),1)]; % each target has the same orientation
@@ -172,37 +165,48 @@ p.trialEvents(:,end+1) = whichTarget;
 p.trialCuesNames = {'Attended' 'Unattended'};
 
 trialCues = zeros(p.numTrials,1);
-attQStructures = 1:9;
-unattQStructures = 10:12;
-qStructure = zeros(p.numTrials,1);
 
 % assign cues to sets of unique combinations 
-qAttCnt = 1;
-qUnAttCnt = 1;
 for nStimConfig = 1:length(p.stimConfigurations)
    configIndx = find(p.trialEvents(:,1)==p.stimConfigurations(nStimConfig));
    for nAtt = 1:p.numAttTrialsPerComb*p.repetitions
        trialCues(configIndx(nAtt)) = 1;       
-       qStructure(configIndx(nAtt)) = attQStructures(qAttCnt);
    end
    for nUnAtt = 1+(p.numAttTrialsPerComb*p.repetitions):(p.numAttTrialsPerComb*p.repetitions)+((p.minNumBlocks-p.numAttTrialsPerComb)*p.repetitions)
        trialCues(configIndx(nUnAtt)) = 2;
-       qStructure(configIndx(nUnAtt)) = unattQStructures(qUnAttCnt);
    end
 end
-p.trialEvents(:,end+1) = trialCues; % store trial cues
 
-% assign quest structure
-qCnt = 1;
-for nTrial=1:2:p.numTrials
-    if qCnt > length(numQStructures)
-        qCnt = 1;
+attQStructures = 1:9;
+unAttQStructures = 10:12;
+qStructure = zeros(p.numTrials,1);
+p.qStructureNames = {'collCued1' 'orthCued1' 'nsCued1' 'collCued2' 'orthCued2' 'nsCued2' 'collCued3' 'orthCued3' 'nsCued3' 'collUnCued1' 'orthUnCued1' 'nsUnCued1'};
+attQCnt = 1;
+unAttQCnt = 1;
+totAttTrials = p.numAttTrialsPerComb*length(p.stimConfigurations)*p.repetitions;
+totUnAttTrials = p.numTrials-totAttTrials;
+
+% assign q structure
+for nAtt = 1:totAttTrials
+    qStructure(nAtt) = attQStructures(attQCnt);
+    if mod(nAtt,2) == 0 && attQCnt < length(attQStructures)
+        attQCnt = attQCnt + 1;
+    elseif mod(nAtt,2) == 0 && attQCnt >= length(attQStructures)
+        attQCnt = 1;
     end
-    qStructure(nTrial:nTrial+1) = numQStructures(qCnt);
-    qCnt = qCnt+1;
+end
+for nUnAtt = 1+totAttTrials:totAttTrials+totUnAttTrials
+   qStructure(nUnAtt) = unAttQStructures(unAttQCnt);
+   if mod(nUnAtt,2) == 0 && unAttQCnt < length(unAttQStructures)
+       unAttQCnt = unAttQCnt + 1;
+   elseif mod(nUnAtt,2) == 0 && unAttQCnt >= length(unAttQStructures)
+       unAttQCnt = 1;
+   end
 end
 
+
 p.trialEvents(:,end+1) = qStructure; % store quest structure assignment
+p.trialEvents(:,end+1) = trialCues; % store trial cues
 
 
 % Check trial and cue distribution
@@ -221,12 +225,9 @@ end
 trial_cueDistrib
 
 p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, cueValidity]
-% p.trialEvents = Shuffle(p.trialEvents,2);
+p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents
 p.stimConfigurationsNames
-
-p.trialsPerConfig = zeros(1,length(p.stimConfigurations));
-
 
 % Define parameters for the stimulus
 freq = 2;
@@ -287,8 +288,8 @@ end
 %% WINDOW SETUP
 [window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-% load('MyGammaTable.mat');
-% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+load('MyGammaTable.mat');
+Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
 white = 255; green = [0 255 0]; blue = [0 0 255];
 
@@ -321,16 +322,33 @@ tGuessSd= log10(0.5); % convert to log space!!, Start with a large sd
 p.pThreshold = 0.70; % threshold
 beta = 2.5; delta = 1/p.numTrials; gamma = 1/2; % gamma 1/amount of answer possibilities
 
-qSurrCu = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % Surround & Cued Quest Structure 
-qNSurrCu = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % No Surround & Cued Quest Structure
-qSurr = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % Surround & No Cue Quest Structure
-qNSurr = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % No Surround & No Cue Quest Structure
+q1 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % collCued1
+q2 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % orthCued1
+q3 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % nsCued1
+q4 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % collCued2
+q5 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % orthCued2
+q6 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % nsCued2
+q7 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % collCued3
+q8 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % orthCued3
+q9 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % nsCued3
+q10 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % collUnCued1
+q11= QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % orthUnCued1
+q12 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % nsUnCued1
 
+qStructMat = [q1 q2 q3 q4 q5 q6 q7 q8 q9 q10 q11 q12];
 
-qSurrCu.normalizePdf = 1;% This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
-qNSurrCu.normalizePdf = 1; 
-qSurr.normalizePdf = 1; 
-qNSurr.normalizePdf = 1; 
+q1.normalizePdf = 1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
+q2.normalizePdf = 1;
+q3.normalizePdf = 1;
+q4.normalizePdf = 1;
+q5.normalizePdf = 1;
+q6.normalizePdf = 1;
+q7.normalizePdf = 1;
+q8.normalizePdf = 1;
+q9.normalizePdf = 1;
+q10.normalizePdf = 1;
+q11.normalizePdf = 1;
+q12.normalizePdf = 1;
 
 % Draw some text to the screen first outside of the experimental loop:
 % Experiment setup
@@ -370,10 +388,8 @@ PsychHID('KbQueueStop', deviceNumber);
 % Preallocate some variables for response data
 data.rightwrong = nan(p.numTrials, 1);
 
-data.cThresholdsSurrCu = nan(4*p.numAttTrialsPerComb*p.repetitions,1); surrCuCnt = 1; % Surround & Cue Contrast Threshold 
-data.cThresholdsNSurrCu = nan(2*p.numAttTrialsPerComb*p.repetitions,1); nSurrCuCnt = 1; % No Surround & Cue Contrast Threshold
-data.cThresholdsSurr = nan(4*(p.minNumBlocks-p.numAttTrialsPerComb)*p.repetitions,1); surrCnt = 1; % Surround Contrast Threshold
-data.cThresholdsNSurr = nan(2*(p.minNumBlocks-p.numAttTrialsPerComb)*p.repetitions,1); nSurrCnt = 1; % No Surround Contrast Threshold
+data.cThresholdsQ = nan(p.minNumTrialsPerSC,p.numQStructures);  %structure to hold contrast thresholds per trial
+qCnt = ones(1,p.numQStructures); % determines which row to access for a structure in cThresholdsQ
 
 % Make surround and center textures before trial loop
 surroundStimulus = nan(numPhases,1);
@@ -410,30 +426,18 @@ t.welcomeTime = welcomeTime;
 PsychHID('KbQueueCreate',deviceNumber);
 
 for nTrial = 1:p.numTrials
-    % add counter for each staircase
+    currQStruct = p.trialEvents(nTrial,end-1);
     
     % Update contrast threshold with respect to the correct QUEST structure
-    if (p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6) && p.trialEvents(nTrial,end) == 1 % Surround & Cue
-        p.contrastThreshold = 10^QuestMean(qSurrCu);
-        data.cThresholdsSurrCu(surrCuCnt) = p.contrastThreshold;        
-    elseif (p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6) && p.trialEvents(nTrial,end) == 1 % No Surround & Cue
-        p.contrastThreshold = 10^QuestMean(qNSurrCu); 
-        data.cThresholdsNSurrCu(nSurrCuCnt) = p.contrastThreshold;       
-    elseif (p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6) && p.trialEvents(nTrial,end) == 2 % Surround & No Cue
-        p.contrastThreshold = 10^QuestMean(qSurr);
-        data.cThresholdsSurr(surrCnt) = p.contrastThreshold;      
-    elseif (p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6) && p.trialEvents(nTrial,end) == 2 % No Surround & No Cue
-        p.contrastThreshold = 10^QuestMean(qNSurr); 
-        data.cThresholdsNSurr(nSurrCnt) = p.contrastThreshold;        
-    end
+    p.contrastThreshold = 10^QuestMean(qStructMat(currQStruct));
+    data.cThresholdsQ(qCnt(currQStruct),currQStruct) = p.contrastThreshold;
     
-    whichTarget = p.trialEvents(nTrial, end-1);
+    whichTarget = p.trialEvents(nTrial,4);
     
     % cap max contrast
     if p.contrastThreshold > 1
         p.contrastThreshold = 1;
-    end
-    
+    end    
         p.contrastThreshold
         
     for nPhase = 1:numPhases
@@ -571,43 +575,28 @@ for nTrial = 1:p.numTrials
     startTrial = GetSecs - expStart; % get the start time of each trial
     
     % Update Quest
-    if (p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6) && p.trialEvents(nTrial,end) == 1 % Surround & Cue Structure
-        data.tTestSurrCu(surrCuCnt) = 10^QuestQuantile(qSurrCu); % Recommended by Pelli (1987)
-        data.rightwrongSurrCu(surrCuCnt) = data.rightwrong(nTrial);
-        qSurrCu = QuestUpdate(qSurrCu, log10(data.tTestSurrCu(surrCuCnt)), data.rightwrongSurrCu(surrCuCnt));
-        surrCuCnt = surrCuCnt + 1;
-    elseif (p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6) && p.trialEvents(nTrial,end) == 1 % No Surround & Cue Structure
-        data.tTestNSurrCu(nSurrCuCnt) = 10^QuestQuantile(qNSurrCu); % Recommended by Pelli (1987)
-        data.rightwrongNSurrCu(nSurrCuCnt) = data.rightwrong(nTrial);
-        qNSurrCu = QuestUpdate(qNSurrCu, log10(data.tTestNSurrCu(nSurrCuCnt)), data.rightwrongNSurrCu(nSurrCuCnt));
-        nSurrCuCnt = nSurrCuCnt + 1;
-    elseif (p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6) && p.trialEvents(nTrial,end) == 2 % Surround & No Cue
-        data.tTestSurr(surrCnt) = 10^QuestQuantile(qSurr); % Recommended by Pelli (1987)
-        data.rightwrongSurr(surrCnt) = data.rightwrong(nTrial);
-        qSurr = QuestUpdate(qSurr, log10(data.tTestSurr(surrCnt)), data.rightwrongSurr(surrCnt));
-        surrCnt = surrCnt + 1;
-    elseif (p.trialEvents(nTrial,1) == 5 || p.trialEvents(nTrial,1) == 6) && p.trialEvents(nTrial,end) == 2 % No Surround & No Cue
-        data.tTestNSurr(nSurrCnt) = 10^QuestQuantile(qNSurr); % Recommended by Pelli (1987)
-        data.rightwrongNSurr(nSurrCnt) = data.rightwrong(nTrial);
-        qNSurr = QuestUpdate(qNSurr, log10(data.tTestNSurr(nSurrCnt)), data.rightwrongNSurr(nSurrCnt));
-        nSurrCnt = nSurrCnt + 1;
-    end
     
+    data.tTestQ(qCnt(currQStruct),currQStruct) = 10^QuestQuantile(qStructMat(currQStruct)); % Recommended by Pelli (1987)
+    data.rightwrongQ(qCnt(currQStruct),currQStruct) = data.rightwrong(nTrial);
+    qStructMat(currQStruct) = QuestUpdate(qStructMat(currQStruct), log10(data.tTestQ(qCnt(currQStruct),currQStruct)), data.rightwrongQ(qCnt(currQStruct),currQStruct));
+      
+    qCnt(currQStruct) = qCnt(currQStruct) + 1;
+
     % get ready for next trial
     Screen('Flip', window);
     WaitSecs(t.iti);
  
     %%% Rest period
-    if nTrial == p.numTrialsPerBreak*nBreak && nTrial ~= p.numTrialsPerBlock*nBlock
-        rest = GetSecs;       
-        restText = 'You can take a short break now, or press the DOWN arrow key to continue.';
-        DrawFormattedText(window, restText, 'center', 'center', white);
-        Screen('Flip', window);       
-        nBreak = nBreak+1;        
-        pmButtonBreak = 0;         
-        KbWait;        
-        t.restTime = (GetSecs-rest)/60;
-    elseif nTrial == p.numTrialsPerBlock*nBlock
+%     if nTrial == p.numTrialsPerBreak*nBreak && nTrial ~= p.numTrialsPerBlock*nBlock
+%         rest = GetSecs;       
+%         restText = 'You can take a short break now, or press the DOWN arrow key to continue.';
+%         DrawFormattedText(window, restText, 'center', 'center', white);
+%         Screen('Flip', window);       
+%         nBreak = nBreak+1;        
+%         pmButtonBreak = 0;         
+%         KbWait;        
+%         t.restTime = (GetSecs-rest)/60;
+    if nTrial == p.numTrialsPerBlock*nBlock
         rest = GetSecs;       
         restText = ['Block ' num2str(nBlock) ' of ' num2str(p.numBlocks) ' completed! You can take a short break now, ' '' '\n' ...
             'or press the DOWN arrow key to continue' '\n' '\n' ];
@@ -643,10 +632,9 @@ end
 PsychPortAudio('Close', pahandle)
 
 % save threshold data
-data.finalThresholdSurrCu = 10.^QuestMean(qSurrCu);
-data.finalThresholdNSurrCu = 10.^QuestMean(qNSurrCu);
-data.finalThresholdSurr = 10.^QuestMean(qSurr);
-data.finalThresholdNSurr = 10.^QuestMean(qNSurr);
+for nQStruct = 1:p.numQStructures
+    data.finalThresholdQ(nQStruct) = 10.^QuestMean(qStructMat(nQStruct));
+end
 
 %% SAVE OUT THE DATA FILE
 cd(dataDir);
