@@ -23,7 +23,7 @@ Screen('Preference', 'SkipSyncTests', 0);
 p.subject = 'Pre-Pilot_LR';
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 1;
+p.repetitions = 3;
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numBreaks = p.numBlocks*2;
 
@@ -32,11 +32,11 @@ useEyeTracker = 'No';
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-deviceString = 'Corsair Corsair K95W Gaming Keyboard';
+% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
 % deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
-% deviceString = 'Apple Internal Keyboard / Trackpad';
+deviceString = 'Apple Internal Keyboard / Trackpad';
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -48,7 +48,7 @@ if deviceNumber == 0
     error('No device by that name was detected');
 end
 
-deviceNumber = 8;
+% deviceNumber = 8;
 
 % Setup key presse
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -172,24 +172,29 @@ p.trialEvents(:,end+1) = whichTarget;
 p.trialCuesNames = {'Attended' 'Unattended'};
 
 trialCues = zeros(p.numTrials,1);
-numQStructures = 1:12;
+attQStructures = 1:9;
+unattQStructures = 10:12;
 qStructure = zeros(p.numTrials,1);
 
 % assign cues to sets of unique combinations 
+qAttCnt = 1;
+qUnAttCnt = 1;
 for nStimConfig = 1:length(p.stimConfigurations)
    configIndx = find(p.trialEvents(:,1)==p.stimConfigurations(nStimConfig));
    for nAtt = 1:p.numAttTrialsPerComb*p.repetitions
-       trialCues(configIndx(nAtt)) = 1;              
+       trialCues(configIndx(nAtt)) = 1;       
+       qStructure(configIndx(nAtt)) = attQStructures(qAttCnt);
    end
    for nUnAtt = 1+(p.numAttTrialsPerComb*p.repetitions):(p.numAttTrialsPerComb*p.repetitions)+((p.minNumBlocks-p.numAttTrialsPerComb)*p.repetitions)
        trialCues(configIndx(nUnAtt)) = 2;
+       qStructure(configIndx(nUnAtt)) = unattQStructures(qUnAttCnt);
    end
 end
 p.trialEvents(:,end+1) = trialCues; % store trial cues
 
 % assign quest structure
 qCnt = 1;
-for nTrial=1:2:length(p.numTrials)
+for nTrial=1:2:p.numTrials
     if qCnt > length(numQStructures)
         qCnt = 1;
     end
@@ -197,7 +202,7 @@ for nTrial=1:2:length(p.numTrials)
     qCnt = qCnt+1;
 end
 
-p.trialEvents(:,end+1) = qStructures; % store quest structure assignment
+p.trialEvents(:,end+1) = qStructure; % store quest structure assignment
 
 
 % Check trial and cue distribution
