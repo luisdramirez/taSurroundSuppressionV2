@@ -25,7 +25,6 @@ p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
 p.repetitions = 20; %20 for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
-p.numBreaks = p.numBlocks*2;
 p.numQStructures = 12;
 
 useEyeTracker = 'No';
@@ -33,8 +32,8 @@ useEyeTracker = 'No';
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
-deviceString = 'Apple Inc. Apple Keyboard';
+deviceString = 'Corsair Corsair K95W Gaming Keyboard';
+% deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
 % deviceString = 'Apple Internal Keyboard / Trackpad';
@@ -49,7 +48,7 @@ if deviceNumber == 0
     error('No device by that name was detected');
 end
 
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key presse
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -129,8 +128,9 @@ p.innerFixation = p.outerFixation/1.5;
 p.trialEvents = [F1];
 
 p.numTrials = size(p.trialEvents,1);
-p.numTrialsPerBreak = p.numTrials/p.numBreaks;
 p.numTrialsPerBlock = p.numTrials/p.numBlocks;
+p.numTrialsPerSet = p.numTrialsPerBlock*p.minNumBlocks;
+p.numSets = p.numTrials/p.numTrialsPerSet;
 p.minNumTrialsPerSC = p.repetitions*2; 
 
 % every trial should be a either 45/135; 
@@ -225,7 +225,7 @@ end
 trial_cueDistrib
 
 p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, cueValidity]
-p.trialEvents = Shuffle(p.trialEvents,2);
+% p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents
 p.stimConfigurationsNames
 
@@ -239,14 +239,14 @@ p.phase = randsample(1:180,numPhases*2, true); % [centerPhase surrPhase]
 p.phase = reshape(p.phase, [numPhases 2]);
 %% TIMING PARAMETERS
 t.targetDur = .250; % (s)
-t.iti = 1; % (s)
+t.iti = 0.5; % (s)
 t.startTime = 2; % (s)
-t.stimLeadTime = 1; % (s)
-t.responseTime = []; % (s)
+t.stimLeadTime = 0.5; % (s)
+t.responseTime = 1; % (s)
 t.cueTargetSOA = 1; % (s)
 t.cueLeadTime = 1; %(s)
 t.responseLeadTime = 1; % (s)
-t.trialDur = t.cueLeadTime + t.cueTargetSOA*2 + t.targetDur*2 + t.responseLeadTime; % duration of the longest trial (sS)
+t.trialDur = t.cueLeadTime + t.cueTargetSOA + t.targetDur + t.responseLeadTime + t.responseTime + t.iti; % duration of the longest trial (sS)
 t.trialDurLongest = t.trialDur + t.startTime; % (2)
 t.runDur = t.trialDur*p.numTrials; % (s)
 t.runDur/60
@@ -288,8 +288,8 @@ end
 %% WINDOW SETUP
 [window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('MyGammaTable.mat');
-Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+% load('MyGammaTable.mat');
+% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
 white = 255; green = [0 255 0]; blue = [0 0 255];
 
@@ -416,8 +416,8 @@ if strcmp(useEyeTracker, 'Yes')
     eyeTrackingRecord(el, rect, p.pixPerDeg);
 end
 
+nSet = 1;
 nBlock = 1;
-nBreak = 1;
 
 expStart = GetSecs; % baseline experiment start time
 welcomeTime = GetSecs - welcomeStart;
@@ -452,10 +452,10 @@ for nTrial = 1:p.numTrials
         WaitSecs(t.startTime);
     end
     
-    % Draw Fixation
-    Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-    Screen('Flip', window);
-    WaitSecs(t.stimLeadTime);
+%     % Draw Fixation
+%     Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+%     Screen('Flip', window);
+%     WaitSecs(t.stimLeadTime);
     
     % Turn on stimuli before precue (dur = t.cueLeadTime)
     for nShift = 1:(t.cueLeadTime/t.flicker)       
@@ -540,38 +540,41 @@ for nTrial = 1:p.numTrials
         WaitSecs(t.flicker);
     end
 
-    Screen('FillOval', window, blue, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-    Screen('Flip', window);
-    
-    % Get Behavioral Response
-    check = 0;
-    while 1
-        [pressed, firstPress] = PsychHID('KbQueueCheck', deviceNumber); % check response
-        if pressed
-            whichPress = find(firstPress);           
-            if check == 0                
-                if any(ismember(whichPress, KbName('ESCAPE')))
-                    Screen('CloseAll');
-                    ListenChar(1);
-                    FlushEvents('keyDown');
-                    error('User exited program.');                   
-                elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 1) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 2) % correct response
-                    data.rightwrong(nTrial) = 1;
-                    check = 1;
-                    PsychHID('KbQueueStop', deviceNumber);
-                elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 2) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 1) % incorrect response
-                    data.rightwrong(nTrial) = 0;
-                    check = 1;
-                    PsychHID('KbQueueStop', deviceNumber);
-                end
-            end
-            %exit loop if keypress is detected
-            if check == 1
-                break;
-            end
-        end
+    % Keep stim flickering (dur = t.responseTime)
+    for nShift = 1:(t.responseTime/t.flicker)
+        shift = randsample(1:numPhases,1);
+        % Draw centerStimulus1
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+        % Draw centerStimulus2
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
+        % Draw Fixation
+        Screen('FillOval', window, blue, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+        Screen('Flip', window);
+        WaitSecs(t.flicker);
     end
     
+    % Get Behavioral Response
+    [pressed, firstPress] = PsychHID('KbQueueCheck', deviceNumber); % check response
+    whichPress = find(firstPress);                        
+    if any(ismember(whichPress, KbName('ESCAPE')))
+        Screen('CloseAll');
+        ListenChar(1);
+        FlushEvents('keyDown');
+        error('User exited program.');                   
+    elseif sum(firstPress) == 0 % missed response
+        data.rightwrong(nTrial) = 0;
+        PsychHID('KbQueueStop', deviceNumber);
+    elseif whichPress(1) ~= keyPressNumbers(1) && whichPress(1) ~= keyPressNumbers(2) % irrelevant key press
+        data.rightwrong(nTrial) = 0;
+        PsychHID('KbQueueStop', deviceNumber);
+    elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 1) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 2) % correct response
+        data.rightwrong(nTrial) = 1;
+        PsychHID('KbQueueStop', deviceNumber);
+    elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 2) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 1) % incorrect response
+        data.rightwrong(nTrial) = 0;
+        PsychHID('KbQueueStop', deviceNumber);
+    end
+
     startTrial = GetSecs - expStart; % get the start time of each trial
     
     % Update Quest
@@ -583,27 +586,36 @@ for nTrial = 1:p.numTrials
     qCnt(currQStruct) = qCnt(currQStruct) + 1;
 
     % get ready for next trial
-    Screen('Flip', window);
-    WaitSecs(t.iti);
+    % Draw Fixation
+%     Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+%     Screen('Flip', window);
+%     WaitSecs(t.stimLeadTime);
+    
+    % Keep stim flickering (dur = t.iti)
+    for nShift = 1:(t.iti/t.flicker)
+        shift = randsample(1:numPhases,1);
+        % Draw centerStimulus1
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+        % Draw centerStimulus2
+        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
+        % Draw Fixation
+        Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
+        Screen('Flip', window);
+        WaitSecs(t.flicker);
+    end
+
  
     %%% Rest period
-%     if nTrial == p.numTrialsPerBreak*nBreak && nTrial ~= p.numTrialsPerBlock*nBlock
-%         rest = GetSecs;       
-%         restText = 'You can take a short break now, or press the DOWN arrow key to continue.';
-%         DrawFormattedText(window, restText, 'center', 'center', white);
-%         Screen('Flip', window);       
-%         nBreak = nBreak+1;        
-%         pmButtonBreak = 0;         
-%         KbWait;        
-%         t.restTime = (GetSecs-rest)/60;
     if nTrial == p.numTrialsPerBlock*nBlock
+        nBlock = nBlock+1;
+    end
+    if nTrial == p.numTrialsPerSet*nSet
         rest = GetSecs;       
-        restText = ['Block ' num2str(nBlock) ' of ' num2str(p.numBlocks) ' completed! You can take a short break now, ' '' '\n' ...
+        restText = ['Set ' num2str(nSet) ' of ' num2str(p.numSets) ' completed! You can take a short break now, ' '' '\n' ...
             'or press the DOWN arrow key to continue' '\n' '\n' ];
         DrawFormattedText(window, restText, 'center', 'center', white);
         Screen('Flip', window);       
-        nBlock = nBlock+1;
-        nBreak = nBreak+1;         
+        nSet = nSet+1;         
         pmButtonBreak = 0; 
         KbWait; 
         t.restTime = (GetSecs-rest)/60;

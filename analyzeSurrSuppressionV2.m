@@ -56,29 +56,37 @@ end
 
 % [coll orth ns]
 for nConfig = 1:length(configs)
-    finThreshQ(1,nConfig) = mean(allFinThreshQ(threshAttIndx(:,nConfig)));
-    finThreshQ(2,nConfig) = mean(allFinThreshQ(threshUnAttIndx(:,nConfig)));
+    finThreshQAvgs(1,nConfig) = mean(allFinThreshQ(threshAttIndx(:,nConfig)));
+    finThreshQSTD(1,nConfig) = std(allFinThreshQ(threshAttIndx(:,nConfig)));
+    finThreshQSTE(1,nConfig) = finThreshQSTD(1,nConfig)/nSCAtt;
+    
+    finThreshQAvgs(2,nConfig) = mean(allFinThreshQ(threshUnAttIndx(:,nConfig)));
+%     finThreshQSTD(2,nConfig) = std(allFinThreshQ(threshUnAttIndx(:,nConfig)));
+%     finThreshQSTE(2,nConfig) = finThreshQSTD(2,nConfig)/nSCUnAtt; 
 end
 
 
 %% plots
 
 figure(1)
-bar(finThreshQ')
+hold on
+bar(finThreshQAvgs')
+% errorbar(finThreshQAvgs(1,:)',finThreshQSTE(1,:)','.')
 title('final thresholds')
-xlabel('conditions')
-ylabel('contrast threshold')
+xlabel('Condition')
+ylabel('C_T')
 legend('att','unatt')
 axis square
 ylim([0 1])
 set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
-    
+set(gca, 'XTick', [1:length(configs)])
+
 figure(2)
 for nStruct = 1:numQStructs
 subplot(4,3,nStruct)
-plot(cThreshQ(nStruct))
+plot(cThreshQ(:,nStruct))
 title(qStructNames(nStruct))
-ylabel('contrast threshold')
+ylabel('C_T')
 xlabel('trial')
 ylim([0 1])
 end
