@@ -23,7 +23,7 @@ Screen('Preference', 'SkipSyncTests', 0);
 p.subject = 'Pre-Pilot_LR';
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 20; %20 for at least 40 trials per staircase
+p.repetitions = 15; %20 for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numQStructures = 12;
 
@@ -32,8 +32,8 @@ useEyeTracker = 'No';
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-deviceString = 'Corsair Corsair K95W Gaming Keyboard';
-% deviceString = 'Apple Inc. Apple Keyboard';
+% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
+deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
 % deviceString = 'Apple Internal Keyboard / Trackpad';
@@ -48,7 +48,7 @@ if deviceNumber == 0
     error('No device by that name was detected');
 end
 
-deviceNumber = 8;
+% deviceNumber = 8;
 
 % Setup key presse
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -225,7 +225,7 @@ end
 trial_cueDistrib
 
 p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, cueValidity]
-% p.trialEvents = Shuffle(p.trialEvents,2);
+p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents
 p.stimConfigurationsNames
 
@@ -288,8 +288,8 @@ end
 %% WINDOW SETUP
 [window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-% load('MyGammaTable.mat');
-% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+load('MyGammaTable.mat');
+Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
 white = 255; green = [0 255 0]; blue = [0 0 255];
 
