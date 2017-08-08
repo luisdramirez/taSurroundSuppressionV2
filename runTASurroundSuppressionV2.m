@@ -23,7 +23,7 @@ Screen('Preference', 'SkipSyncTests', 0);
 p.subject = 'Pre-Pilot_LR';
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 15; %20 for at least 40 trials per staircase
+p.repetitions = 20; %20 for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numQStructures = 12;
 
@@ -74,8 +74,8 @@ cd(expDir);
 %% SCREEN PARAMETERS
 screens = Screen('Screens'); % look at available screens
 p.screenWidthPixels = Screen('Rect', max(screens));
-screenWidth = 42; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen
-viewDistance = 128; % in cm, ideal distance: 1 cm equals 1 visual degree
+screenWidth = 42; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen, my screen (47.5cm), testing room = 42
+viewDistance = 128; % in cm, ideal distance: 1 cm equals 1 visual degree (128)
 visAngle = (2*atan2(screenWidth/2, viewDistance))*(180/pi); % Visual angle of the whole screen
 p.pixPerDeg = round(p.screenWidthPixels(3)/visAngle); % pixels per degree visual angle
 p.grey = 128;
@@ -133,9 +133,12 @@ p.numTrialsPerSet = p.numTrialsPerBlock*p.minNumBlocks;
 p.numSets = p.numTrials/p.numTrialsPerSet;
 p.minNumTrialsPerSC = p.repetitions*2; 
 
-% every trial should be a either 45/135; 
-p.targetsOrientation = [repmat(45,p.numTrialsPerBlock*(p.numBlocks/2),1);repmat(135,p.numTrialsPerBlock*(p.numBlocks/2),1)]; % each target has the same orientation
-
+% every trial should be either 45/135; % each target has the same orientation
+if mod(p.runNumber,2) ~= 0
+    p.targetsOrientation = repmat(45,p.numTrialsPerBlock*p.numBlocks,1);
+elseif mod(p.runNumber,2) == 0
+    p.targetsOrientation = repmat(135,p.numTrialsPerBlock*p.numBlocks,1); 
+end
 % surround orientation dependent on collinear/orthogonal condition
 p.surroundOrientation = nan(size(p.targetsOrientation));
 
@@ -234,23 +237,24 @@ freq = 2;
 p.freq = p.centerSize/p.pixPerDeg * freq;
 p.freqSurround = p.surroundSize/p.pixPerDeg * freq;
 p.orientation = 0;
-numPhases = 20;
-p.phase = randsample(1:180,numPhases*2, true); % [centerPhase surrPhase]
-p.phase = reshape(p.phase, [numPhases 2]);
+numPhases = 2;
+p.targPhase = linspace(1,360,numPhases+1);
+p.surrPhase = linspace(1,360,numPhases+1);
 %% TIMING PARAMETERS
-t.targetDur = .250; % (s)
-t.iti = 0.5; % (s)
 t.startTime = 2; % (s)
 t.stimLeadTime = 0.5; % (s)
-t.responseTime = 1; % (s)
 t.cueTargetSOA = 1; % (s)
 t.cueLeadTime = 1; %(s)
+t.targetDur = .250; % (s)
 t.responseLeadTime = 1; % (s)
-t.trialDur = t.cueLeadTime + t.cueTargetSOA + t.targetDur + t.responseLeadTime + t.responseTime + t.iti; % duration of the longest trial (sS)
-t.trialDurLongest = t.trialDur + t.startTime; % (2)
-t.runDur = t.trialDur*p.numTrials; % (s)
+t.responseTime = 1; % (s)
+t.iti = 0.5; % (s)
+t.trialDur = t.cueLeadTime + t.cueTargetSOA + t.targetDur + t.responseLeadTime + t.responseTime + t.iti; % (s)
+t.runDur = t.trialDur*p.numTrials + t.startTime*p.numBlocks; % (s)
 t.runDur/60
-t.flicker = 0.025; % (s)
+t.flicker = t.targetDur/2; % (s)
+t.numEvents = 7;
+t.trialTimes = nan(p.numTrials, t.numEvents); % [startTime cueLeadTime cueTargetSOA targetDur responseLeadTime responseTime iti] [2 1 1 .250 1 1 0.5]
 %% CREATE STIMULI
 % make mask to create circle for the center grating
 [x,y] = meshgrid((-p.centerSize/2):(p.centerSize/2)-1, (-p.centerSize/2):(p.centerSize/2)-1);
@@ -278,10 +282,10 @@ targetGratings = NaN(numPhases,(t.targetDur/t.flicker), p.centerSize, p.centerSi
 surroundGrating = NaN(numPhases, p.surroundSize, p.surroundSize);
 
 for nPhase = 1:numPhases
-    center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.phase(nPhase,1)));
+    center = (sin(p.freq*2*pi/p.centerSize*(Xc.*sin(p.orientation*(pi/180))+Yc.*cos(p.orientation*(pi/180)))-p.targPhase(nPhase)));
     centerGratings(nPhase,:,:) = (center .* centerGaussian);
     
-    surround = (sin(p.freqSurround*2*pi/p.surroundSize*(Xs.*sin(p.orientation*(pi/180))+Ys.*cos(p.orientation*(pi/180)))-p.phase(nPhase,2)));
+    surround = (sin(p.freqSurround*2*pi/p.surroundSize*(Xs.*sin(p.orientation*(pi/180))+Ys.*cos(p.orientation*(pi/180)))-p.surrPhase(nPhase)));
     surroundGrating(nPhase,:,:) = (surround .* surroundGaussian);
 end
 
@@ -298,11 +302,17 @@ Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 % Define coordinates where to draw the stimuli
 centerX = rect(3)/2; centerY = rect(4)/2;
+
+p.ecc = 4*p.pixPerDeg;
+
 % Coordinates for location on left and right side of fixation
-patch =  [centerX*(4/5) centerX*(6/5)]; %[leftStimX rightStimX centerY]
+patch =  [centerX-p.ecc centerX+p.ecc]; %[leftStimX rightStimX centerY]
+patchDeg = patch/p.pixPerDeg;
 
 Screen('TextStyle', window, 1);
 Screen('TextSize', window, 16);
+
+t.ifi = Screen('GetFlipInterval',window);
 
 %% EYE TRACKING
 if strcmp(useEyeTracker, 'Yes')
@@ -378,7 +388,7 @@ end
 
 while 1
    [pressed, firstPress] = PsychHID('KbQueueCheck', deviceNumber); % check response
-   if pressed == 1;
+   if pressed == 1
        break;
    end
 end
@@ -424,9 +434,10 @@ welcomeTime = GetSecs - welcomeStart;
 t.welcomeTime = welcomeTime;
 
 PsychHID('KbQueueCreate',deviceNumber);
+newShift = randsample(1:numPhases,1);
 
 for nTrial = 1:p.numTrials
-    currQStruct = p.trialEvents(nTrial,end-1);
+    currQStruct = p.trialEvents(nTrial,end-1); % which is the currect QUEST structure
     
     % Update contrast threshold with respect to the correct QUEST structure
     p.contrastThreshold = 10^QuestMean(qStructMat(currQStruct));
@@ -446,60 +457,140 @@ for nTrial = 1:p.numTrials
         targetStimulus(nPhase) = Screen('MakeTexture', window, targetTexture); 
     end
     
-    if nTrial == 1 || nTrial == p.numTrialsPerBlock*(nBlock-1) + 1
+    tic;
+    if nTrial == 1 || nTrial == p.numTrialsPerSet*(nSet-1) + 1
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation]);
         Screen('Flip', window);
         WaitSecs(t.startTime);
     end
+    t.trialTimes(nTrial,1) = toc; %duration of start delay
     
-%     % Draw Fixation
-%     Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-%     Screen('Flip', window);
-%     WaitSecs(t.stimLeadTime);
-    
+    tic;
+    nFlicker = 1;
+    startCueLeadTime = GetSecs;
     % Turn on stimuli before precue (dur = t.cueLeadTime)
-    for nShift = 1:(t.cueLeadTime/t.flicker)       
-        shift = randsample(1:numPhases,1);
+    for nFlips = 1:round(t.cueLeadTime/t.ifi)
+        if GetSecs >= (startCueLeadTime + t.cueLeadTime)
+            break
+        end
+        % determine new phase if it's time to shift 
+        if nFlips == 1
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+        elseif GetSecs >= startCueLeadTime + t.flicker*nFlicker
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            % make sure phase isn't the same as the previous shift
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+            nFlicker = nFlicker + 1; 
+        end
+
+        shiftUpdate(nFlips,nTrial) = newShift;
+
         % Draw centerStimulus1
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
         % Draw centerStimulus2
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-        Screen('Flip', window);       
-        WaitSecs(t.flicker);
+        Screen('Flip', window);      
     end
+    t.trialTimes(nTrial,2) = toc; % duration of cueLeadTime
     
     % Play pre-cue if valid
     if p.trialEvents(nTrial,end) == 1
         playSound(pahandle, cueTones(1,:)*soundAmp);
         preCueTime = GetSecs - expStart;
-        trialTimes(nTrial,2) = preCueTime;
     end  
     
+    tic;
+    nFlicker = 1;
+    startCueTargetSOA = GetSecs;
     % Keep stim flickering (dur = t.cueTargetSOA)
-    for nShift = 1:(t.cueTargetSOA/t.flicker)  
-        shift = randsample(1:numPhases,1);      
+    for nFlips = 1:round(t.cueTargetSOA/t.ifi)
+        if GetSecs >= (startCueTargetSOA + t.cueTargetSOA)
+            break
+        end
+        % determine new phase if it's time to shift 
+        if nFlips == 1
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+        elseif GetSecs >= startCueTargetSOA + t.flicker*nFlicker
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            % make sure phase isn't the same as the previous shift
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+            nFlicker = nFlicker + 1; 
+        end
         % Draw centerStimulus1
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
         % Draw centerStimulus2
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
         Screen('Flip', window);
-        WaitSecs(t.flicker);
     end
+    t.trialTimes(nTrial,3) = toc; %duration of cueTargetSOA
     
-    % Set up button press
-    PsychHID('KbQueueStart', deviceNumber);
-    PsychHID('KbQueueFlush', deviceNumber);
-    
+    tic;
+    nFlicker = 1;
+    startTargDur = GetSecs;
     % Flickering Target (dur = t.targetDur)
-    for nShift = 1:(t.targetDur/t.flicker)
-        shift = randsample(1:numPhases,1);
+    for nFlips = 1:round(t.targetDur/t.ifi)
+        if GetSecs >= (startTargDur + t.targetDur)
+            break
+        end
+        % determine new phase if it's time to shift 
+        if nFlips == 1
+            oldTargShift = newShift;
+            newTargShift = randsample(1:numPhases,1);
+            newSurrShift = randsample(1:numPhases,1);
+            % make sure phase isn't the same as the previous shift
+            if newTargShift == oldTargShift && oldTargShift ~= numPhases
+               newTargShift = oldTargShift + 1;
+            elseif newTargShift == oldTargShift && oldTargShift == numPhases
+                newTargShift = 1;
+            end         
+        elseif GetSecs >= startTargDur + t.flicker*nFlicker
+            oldTargShift = newTargShift;
+            newTargShift = randsample(1:numPhases,1);
+            oldSurrShift = newSurrShift;
+            newSurrShift = randsample(1:numPhases,1);
+            % make sure phase isn't the same as the previous shift
+            if newTargShift == oldTargShift && oldTargShift ~= numPhases
+               newTargShift = oldTargShift + 1;
+            elseif newTargShift == oldTargShift && oldTargShift == numPhases
+                newTargShift = 1;
+            end         
+            if newSurrShift == oldSurrShift && oldSurrShift ~= numPhases
+               newSurrShift = oldSurrShift + 1;
+            elseif newSurrShift == oldSurrShift && oldSurrShift == numPhases
+                newSurrShift = 1;
+            end
+            nFlicker = nFlicker + 1; 
+        end
+        shiftTargUpdate(nFlips,nTrial) = newTargShift;
         % Draw surroundStimulus if not baseline condition
         if p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6  
-            Screen('DrawTexture', window, surroundStimulus(shift), [], CenterRectOnPoint([0 0 p.surroundSize p.surroundSize], centerX, centerY), p.trialEvents(nTrial,3))
+            Screen('DrawTexture', window, surroundStimulus(newSurrShift), [], CenterRectOnPoint([0 0 p.surroundSize p.surroundSize], centerX, centerY), p.trialEvents(nTrial,3))
             Screen('FillOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)')
             Screen('FillOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(2), centerY)')
             Screen('FrameOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)', p.gapSize, p.gapSize)
@@ -509,49 +600,102 @@ for nTrial = 1:p.numTrials
         % Determine which target to change
         if mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t1 contrast changes (left target)
             % Draw centerStimulus1
-            Screen('DrawTexture', window, targetStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+            Screen('DrawTexture', window, targetStimulus(newTargShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
             % Draw centerStimulus2
-            Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2)) 
+            Screen('DrawTexture', window, centerStimulus(newTargShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2)) 
         elseif mod(p.trialEvents(nTrial,1),2) == 0 % if stimConfig is even, t2 contrast changes (right target)
             % Draw centerStimulus1
-            Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+            Screen('DrawTexture', window, centerStimulus(newTargShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
             % Draw centerStimulus2
-            Screen('DrawTexture', window, targetStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2)) 
-        end
-        
+            Screen('DrawTexture', window, targetStimulus(newTargShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2)) 
+        end        
         % Draw Fixation
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
         Screen('Flip', window);
         % GetClicks;        
         % Stim duration
-        WaitSecs(t.flicker);
     end
-
+    t.trialTimes(nTrial,4) = toc; %target duration
+    
+    % Set up button press
+    PsychHID('KbQueueStart', deviceNumber);
+    PsychHID('KbQueueFlush', deviceNumber);
+    
+    tic;
+    nFlicker = 1;
+    startRespLeadTime = GetSecs;
     % Keep stim flickering (dur = t.responseLeadTime)
-    for nShift = 1:(t.responseLeadTime/t.flicker)
-        shift = randsample(1:numPhases,1);
+    for nFlips = 1:round(t.responseLeadTime/t.ifi)
+        if GetSecs >= (startRespLeadTime + t.responseLeadTime)
+            break
+        end
+        % determine new phase if it's time to shift 
+        if nFlips == 1
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+        elseif GetSecs >= startRespLeadTime + t.flicker*nFlicker
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            % make sure phase isn't the same as the previous shift
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+            nFlicker = nFlicker + 1; 
+        end
         % Draw centerStimulus1
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
         % Draw centerStimulus2
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
         Screen('Flip', window);
-        WaitSecs(t.flicker);
     end
-
+    t.trialTimes(nTrial,5) = toc; %duration of responseLeadTime
+    
+    tic;
+    nFlicker = 1;
+    startRespTime = GetSecs;
     % Keep stim flickering (dur = t.responseTime)
-    for nShift = 1:(t.responseTime/t.flicker)
-        shift = randsample(1:numPhases,1);
+    for nFlips = 1:round(t.responseTime/t.ifi)
+        if GetSecs >= (startRespTime + t.responseTime)
+            break
+        end
+        % determine new phase if it's time to shift 
+        if nFlips == 1
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+        elseif GetSecs >= startRespTime + t.flicker*nFlicker
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            % make sure phase isn't the same as the previous shift
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+            nFlicker = nFlicker + 1; 
+        end
         % Draw centerStimulus1
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
         % Draw centerStimulus2
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, blue, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
         Screen('Flip', window);
-        WaitSecs(t.flicker);
     end
+    t.trialTimes(nTrial,6) = toc; %duration of responseTime
     
     % Get Behavioral Response
     [pressed, firstPress] = PsychHID('KbQueueCheck', deviceNumber); % check response
@@ -585,30 +729,46 @@ for nTrial = 1:p.numTrials
       
     qCnt(currQStruct) = qCnt(currQStruct) + 1;
 
-    % get ready for next trial
-    % Draw Fixation
-%     Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
-%     Screen('Flip', window);
-%     WaitSecs(t.stimLeadTime);
-    
+    % get ready for next trial   
+    tic;
+    nFlicker = 1;
+    startITI = GetSecs;
     % Keep stim flickering (dur = t.iti)
-    for nShift = 1:(t.iti/t.flicker)
-        shift = randsample(1:numPhases,1);
+    for nFlips = 1:round(t.iti/t.ifi)
+        if GetSecs >= (startITI + t.iti)
+            break
+        end
+        % determine new phase if it's time to shift 
+        if nFlips == 1
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+        elseif GetSecs >= startITI + t.flicker*nFlicker
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            % make sure phase isn't the same as the previous shift
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+            nFlicker = nFlicker + 1; 
+        end    
         % Draw centerStimulus1
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
         % Draw centerStimulus2
-        Screen('DrawTexture', window, centerStimulus(shift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, green, [centerX-p.outerFixation centerY-p.outerFixation centerX+p.outerFixation centerY+p.outerFixation])
         Screen('Flip', window);
-        WaitSecs(t.flicker);
     end
-
+    t.trialTimes(nTrial,7) = toc; % duration of iti
  
     %%% Rest period
-    if nTrial == p.numTrialsPerBlock*nBlock
-        nBlock = nBlock+1;
-    end
     if nTrial == p.numTrialsPerSet*nSet
         rest = GetSecs;       
         restText = ['Set ' num2str(nSet) ' of ' num2str(p.numSets) ' completed! You can take a short break now, ' '' '\n' ...
@@ -618,7 +778,7 @@ for nTrial = 1:p.numTrials
         nSet = nSet+1;         
         pmButtonBreak = 0; 
         KbWait; 
-        t.restTime = (GetSecs-rest)/60;
+        t.restTime(nSet) = (GetSecs-rest)/60;
     end
     
 end
