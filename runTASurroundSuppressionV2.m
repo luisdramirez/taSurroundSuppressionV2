@@ -758,13 +758,6 @@ WaitSecs(2);
 Screen('LoadNormalizedGammaTable', window, OriginalCLUT);
 Screen('CloseAll')
 
-% Eye Tracker Recording OFF
-if strcmp(useEyeTracker, 'Yes')
-    Eyelink('StopRecording');
-    Eyelink('CloseFile');
-    Eyelink('ReceiveFile',edf_filename);
-end
-
 % close audio port
 PsychPortAudio('Close', pahandle)
 
