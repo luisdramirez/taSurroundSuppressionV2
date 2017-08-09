@@ -71,7 +71,7 @@ end
 figure(1)
 hold on
 bar(finThreshQAvgs')
-% errorbar(finThreshQAvgs(1,:)',finThreshQSTE(1,:)','.')
+errorbar(finThreshQAvgs(1,:)',finThreshQSTE(1,:)','.')
 title('final thresholds')
 xlabel('Condition')
 ylabel('C_T')
