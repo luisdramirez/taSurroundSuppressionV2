@@ -12,19 +12,19 @@ KbName('UnifyKeyNames');
 Screen('Preference', 'SkipSyncTests', 0);
 
 % Subject name
-p.subject = 'Pre-Pilot_LR';
+p.subject = 'test';
 % Trial Events Parameters
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 20; %20 for at least 40 trials per staircase
+p.repetitions = 1; %20 for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numQStructures = 12;
 
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
-deviceString = 'Apple Inc. Apple Keyboard';
+deviceString = 'Corsair Corsair K95W Gaming Keyboard';
+% deviceString = 'Apple Inc. Apple Keyboard';
 % deviceString = 'Apple Keyboard';
 % deviceString = 'CHICONY USB Keyboard';
 % deviceString = 'Apple Internal Keyboard / Trackpad';
@@ -39,7 +39,7 @@ if deviceNumber == 0
     error('No device by that name was detected');
 end
 
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -63,8 +63,8 @@ cd(expDir);
 %% SCREEN PARAMETERS
 screens = Screen('Screens'); % look at available screens
 p.screenWidthPixels = Screen('Rect', max(screens));
-screenWidth = 42; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen, my screen (47.5cm), testing room = 42
-viewDistance = 128; % in cm, ideal distance: 1 cm equals 1 visual degree (testing room = 128; my screen = 58)
+screenWidth = 47.5; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen, my screen (47.5cm), testing room = 42
+viewDistance = 58; % in cm, ideal distance: 1 cm equals 1 visual degree (testing room = 128; my screen = 58)
 visAngle = (2*atan2(screenWidth/2, viewDistance))*(180/pi); % Visual angle of the whole screen
 p.pixPerDeg = round(p.screenWidthPixels(3)/visAngle); % pixels per degree visual angle
 p.grey = 128; white = 255; green = [0 255 0]; blue = [0 0 255]; black = [0 0 0];
@@ -272,8 +272,8 @@ end
 %% WINDOW SETUP
 [window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('MyGammaTable.mat');
-Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+% load('MyGammaTable.mat');
+% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
 
 % Enable alpha blending
@@ -327,6 +327,8 @@ q10.normalizePdf = 1;
 q11.normalizePdf = 1;
 q12.normalizePdf = 1;
 
+data.qMissedTrials = zeros(1,p.numQStructures); % vector to keep track of missed trials in a quest structure
+data.qBadPresses = zeros(1,p.numQStructures); % vector to keep track of bad button presses in a quest structure
 %% START THE EXPERIMENT
 % Draw some text to the screen first outside of the experimental loop:
 % Experiment setup
@@ -676,9 +678,11 @@ for nTrial = 1:p.numTrials
         error('User exited program.');                   
     elseif sum(firstPress) == 0 % missed response
         data.rightwrong(nTrial) = 0;
+        data.qMissedTrials(currQStruct) = data.qMissedTrials(currQStruct) + 1;
         PsychHID('KbQueueStop', deviceNumber);
     elseif whichPress(1) ~= keyPressNumbers(1) && whichPress(1) ~= keyPressNumbers(2) % irrelevant key press
         data.rightwrong(nTrial) = 0;
+        data.qBadPresses(currQStruct) = data.qBadPresses(currQStruct) + 1;
         PsychHID('KbQueueStop', deviceNumber);
     elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 1) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 2) % correct response
         data.rightwrong(nTrial) = 1;
