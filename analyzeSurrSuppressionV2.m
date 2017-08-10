@@ -1,7 +1,9 @@
 % Analyze Surround SuppressionV2
 
+clear all
+close all
 
-subject = 'Pre-Pilot_LR';
+subject = 'Pre-Pilot_IB';
 
 plotData = 'Yes';
 
@@ -18,6 +20,7 @@ end
 
 %%
 stimConfigs = theData(runNumber).p.stimConfigurations;
+fixedStimContrast = theData(runNumber).p.fixedStimContrast;
 allFinThreshQ = theData(runNumber).data.finalThresholdQ;
 cThreshQ = theData(runNumber).data.cThresholdsQ;
 numQStructs = theData(runNumber).p.numQStructures;
@@ -56,13 +59,13 @@ end
 
 % [coll orth ns]
 for nConfig = 1:length(configs)
-    finThreshQAvgs(1,nConfig) = mean(allFinThreshQ(threshAttIndx(:,nConfig)));
+    finThreshQAvgs(1,nConfig) = mean(allFinThreshQ(threshAttIndx(:,nConfig))-fixedStimContrast);
     finThreshQSTD(1,nConfig) = std(allFinThreshQ(threshAttIndx(:,nConfig)));
     finThreshQSTE(1,nConfig) = finThreshQSTD(1,nConfig)/nSCAtt;
     
-    finThreshQAvgs(2,nConfig) = mean(allFinThreshQ(threshUnAttIndx(:,nConfig)));
-%     finThreshQSTD(2,nConfig) = std(allFinThreshQ(threshUnAttIndx(:,nConfig)));
-%     finThreshQSTE(2,nConfig) = finThreshQSTD(2,nConfig)/nSCUnAtt; 
+    finThreshQAvgs(2,nConfig) = mean(allFinThreshQ(threshUnAttIndx(:,nConfig))-fixedStimContrast);
+    finThreshQSTD(2,nConfig) = std(allFinThreshQ(threshUnAttIndx(:,nConfig)));
+    finThreshQSTE(2,nConfig) = finThreshQSTD(2,nConfig)/nSCUnAtt; 
 end
 
 
@@ -70,11 +73,11 @@ end
 
 figure(1)
 hold on
-bar(finThreshQAvgs')
-errorbar(finThreshQAvgs(1,:)',finThreshQSTE(1,:)','.')
-title('final thresholds')
+bar(1:3,finThreshQAvgs')
+errorbar(1:3,finThreshQAvgs(1,:),finThreshQSTE(1,:),'*')
+title(['final thresholds ' subject(end-1:end)])
 xlabel('Condition')
-ylabel('C_T')
+ylabel('(C_T-C_F)')
 legend('att','unatt')
 axis square
 ylim([0 1])

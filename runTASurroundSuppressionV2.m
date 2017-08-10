@@ -229,8 +229,10 @@ t.targetDur = .250; % (s)
 t.responseLeadTime = 1; % (s)
 t.responseTime = 1; % (s)
 t.iti = 0.5; % (s)
-t.trialDur = t.cueLeadTime + t.cueTargetSOA + t.targetDur + t.responseLeadTime + t.responseTime + t.iti; % (s)
-t.runDur = t.trialDur*p.numTrials + t.startTime*p.numBlocks; % (s)
+% Determine jitter for each trial
+t.jit=randsample(0:0.1:1,p.numTrials,true);
+t.trialDur = t.jit + (t.cueLeadTime + t.cueTargetSOA + t.targetDur + t.responseLeadTime + t.responseTime + t.iti); % (s)
+t.runDur = sum(t.trialDur) + t.startTime*p.numBlocks; % (s)
 t.flicker = t.targetDur/2; % (s)
 t.numEvents = 7;
 t.trialTimes = nan(p.numTrials, t.numEvents); % [startTime cueLeadTime cueTargetSOA targetDur responseLeadTime responseTime iti] [2 1 1 .250 1 1 0.5]
@@ -400,6 +402,7 @@ newShift = randsample(1:numPhases,1);
 
 for nTrial = 1:p.numTrials
     currQStruct = p.trialEvents(nTrial,end-1); % which is the currect QUEST structure
+    newITI = t.iti + t.jit(nTrial);
     
     % Update contrast threshold with respect to the correct QUEST structure
     p.contrastThreshold = 10^QuestMean(qStructMat(currQStruct));
@@ -698,8 +701,8 @@ for nTrial = 1:p.numTrials
     nFlicker = 1;
     startITI = GetSecs;
     % Keep stim flickering (dur = t.iti)
-    for nFlips = 1:round(t.iti/t.ifi)
-        if GetSecs >= (startITI + t.iti)
+    for nFlips = 1:round(newITI/t.ifi)
+        if GetSecs >= (startITI + newITI)
             break
         end
         % determine new phase if it's time to shift 
