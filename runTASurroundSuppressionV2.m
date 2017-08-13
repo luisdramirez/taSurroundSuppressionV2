@@ -134,7 +134,7 @@ p.surrPhase = linspace(1,360,numPhases+1); % sample random phases for the surrou
 p.stimConfigurations = [1 2 3 4 5 6]; 
 p.stimConfigurationsNames = {'CollSrrndL' 'CollSrrndR' 'OrthSrrndL' 'OrthSrrndR' 'noSrrndL' 'noSrrndR'};
 [F1] = BalanceFactors(p.numBlocks, 0, p.stimConfigurations);
-p.trialEvents = [F1];
+p.trialEvents = [F1]; % [stimConfiguration]
 
 p.numTrials = size(p.trialEvents,1);
 p.numTrialsPerBlock = p.numTrials/p.numBlocks;
@@ -162,7 +162,8 @@ for nTrial = 1:p.numTrials
    end
 end
 whichOrientation =  [p.targetsOrientation p.surroundOrientation]; % Store orientation information
-p.trialEvents(:, end+1:end+2) = whichOrientation; % Add orientation info to trialEvents
+p.trialEvents(:, end+1:end+2) = whichOrientation; % Add orientation info to trialEvents; 
+% [stimConfiguration, targOrientation, surrOrientation]
 
 %--------------------%
 %      Targets       %
@@ -175,7 +176,8 @@ for nTrial = 1:p.numTrials
         whichTarget(nTrial,1) = 1;
     end
 end
-p.trialEvents(:,end+1) = whichTarget; % Add target info to trialEvents
+p.trialEvents(:,end+1) = whichTarget; % Add target info to trialEvents 
+% [stimConfiguration, targOrientation, surrOrientation, whichTarget]
 
 %--------------------%
 %       Cues         %
@@ -229,13 +231,13 @@ for nUnAtt = 1+totAttTrials:totAttTrials+totUnAttTrials
 end
 
 p.trialEvents(:,end+1) = qStructure; % add quest structure assignment
-p.trialEvents(:,end+1) = trialCues; % add trial cues
+p.trialEvents(:,end+1) = trialCues; % add trial cues 
+% [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
 
 %---------------------%
 % Check Distributions %
 %---------------------%
 trial_cueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); % [validity x configuration]
-
 for nConfig = 1:length(p.stimConfigurations)
     for nCue = 1:length(p.trialCuesNames)
         if nCue == 1
@@ -245,12 +247,9 @@ for nConfig = 1:length(p.stimConfigurations)
         end
     end
 end
-
-trial_cueDistrib
-
-p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
+trial_cueDistrib 
 p.trialEvents = Shuffle(p.trialEvents,2);
-p.trialEvents
+p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
 p.stimConfigurationsNames
 %% TIMING PARAMETERS
 % Setup basic timing of events.
