@@ -27,11 +27,9 @@ p.numQStructures = 12;
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard';
-% deviceString = 'Apple Inc. Apple Keyboard';
-deviceString = 'Apple Internal Keyboard / Trackpad';
-% deviceString = 'Apple Keyboard';
-% deviceString = 'CHICONY USB Keyboard';
+deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+% deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
+% deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -42,7 +40,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -252,13 +250,13 @@ p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
 p.stimConfigurationsNames
 %% TIMING PARAMETERS
-% Setup basic timing of events.
 
+% Setup basic timing of events.
 t.startTime = 2; % (s) delay before stimulus comes up when a new set starts (after a break)
 t.cueLeadTime = 1; %(s) time between onset of stimulus and cue
 t.cueTargetSOA = 1; % (s) time between cue and target
 t.targetDur = .250; % (s) target duration
-t.responseTime = 2; % (s) response duration after target appears
+t.responseTime = 1; % (s) response duration after target appears
 t.iti = 0.5; % (s) dwell period between trials
 
 % Determine jitter for each trial
@@ -376,11 +374,11 @@ welcomeText = ['Welcome!' '\n' '\n'...
     '' '\n' '\n'...
     'On every trial two center targets are presented next to fixation, on the left and right.' '\n' '\n' ...
     'Your task is to detect a change in contrast in either one of these center targets. ' '\n' '\n' ...
-    'An auditory cue (pre-cue) will indicate when a change will occur.' '\n' '\n' ...
+    'An auditory cue (pre-cue) will indicate when an increment in contrast will occur.' '\n' '\n' ...
     'On most trials the center targets will be accompanied by a surround stimulus, while on some the surround stimulus is absent.' '\n' '\n' ...
     'Additionally, on some trials there will be no auditory cue.' '\n' '\n' ...
-    'When asked to, report which target the change in contrast occured by pressing either the LEFT or RIGHT arrow key.' '\n' '\n' ...
-    'Be sure to always maintain steady fixation on the green dot! ' '\n' '\n' '\n' ...
+    'When the fixation becomes green, report which target the contrast increment occured by pressing either the LEFT or RIGHT arrow key.' '\n' '\n' ...
+    'Be sure to always maintain steady fixation on dot! ' '\n' '\n' '\n' ...
     'Press the DOWN arrow key to continue.' '\n' '\n' ];
 
 DrawFormattedText(window, welcomeText, 'center', 'center', 255);
@@ -403,8 +401,7 @@ end
 PsychHID('KbQueueStop', deviceNumber);
  
 % Preallocate some variables to store response data
-data.rightwrong = nan(p.numTrials, 1);
-
+data.rightwrong = nan(p.numTrials, 1); % collect behavioral response
 data.cThresholdsQ = nan(p.minNumTrialsPerSC,p.numQStructures);  %structure to hold contrast thresholds per trial
 qCnt = ones(1,p.numQStructures); % determines which row to access for a structure in cThresholdsQ
 
@@ -448,6 +445,9 @@ for nTrial = 1:p.numTrials
     currQStruct = p.trialEvents(nTrial,end-1); % which is the currect QUEST structure
     newITI = t.iti + t.jit(nTrial); % what is this trial new iti
     
+    %--------------------%
+    %        QUEST       %
+    %--------------------%
     % Update contrast threshold with respect to the correct QUEST structure
     p.contrastThreshold = 10^QuestMean(qStructMat(currQStruct));
     data.cThresholdsQ(qCnt(currQStruct),currQStruct) = p.contrastThreshold;
@@ -466,6 +466,9 @@ for nTrial = 1:p.numTrials
         targetStimulus(nPhase) = Screen('MakeTexture', window, targetTexture); 
     end
     
+    %--------------------%
+    %        Begin       %
+    %--------------------%
     % Draw the fixation at the beginning of a set
     tic;
     if nTrial == 1 || nTrial == p.numTrialsPerSet*(nSet-1) + 1
@@ -476,6 +479,9 @@ for nTrial = 1:p.numTrials
     end
     t.trialTimes(nTrial,1) = toc; % duration of start delay
     
+    %--------------------%
+    %      Before Cue    %
+    %--------------------%
     % Turn on stimuli before precue (dur = t.cueLeadTime)
     tic;
     nFlicker = 1;
@@ -515,12 +521,15 @@ for nTrial = 1:p.numTrials
     end
     t.trialTimes(nTrial,2) = toc; % duration of cueLeadTime
     
-    % Play pre-cue if valid
+    % Play pre-cue if valid!
     if p.trialEvents(nTrial,end) == 1
         playSound(pahandle, cueTones(1,:)*soundAmp);
         preCueTime = GetSecs - expStart;
     end
     
+    %--------------------%
+    %    cue-targ SOA    % 
+    %--------------------%
     % Keep stim flickering after cue plays (dur = t.cueTargetSOA)   
     tic;
     nFlicker = 1;
@@ -564,6 +573,10 @@ for nTrial = 1:p.numTrials
     PsychHID('KbQueueStart', deviceNumber);
     PsychHID('KbQueueFlush', deviceNumber);
     
+    
+    %--------------------%
+    %       Target       %
+    %--------------------%
     % Display target, keeping stimuli flickering (dur = t.targetDur)  
     tic;
     nFlicker = 1;
@@ -629,7 +642,10 @@ for nTrial = 1:p.numTrials
         % Stim duration
     end
     t.trialTimes(nTrial,4) = toc; % duration of target
-     
+    
+    %--------------------%
+    %      Response      %
+    %--------------------%
     % Keep stim flickering for response time, fixation becomes green (dur = t.responseTime)    
     tic;
     nFlicker = 1;
@@ -693,12 +709,17 @@ for nTrial = 1:p.numTrials
         PsychHID('KbQueueStop', deviceNumber);
     end
     
-    % Update Quest   
+    %--------------------%
+    %    Update Quest    %
+    %--------------------%
     data.tTestQ(qCnt(currQStruct),currQStruct) = 10^QuestQuantile(qStructMat(currQStruct)); % Recommended by Pelli (1987)
     data.rightwrongQ(qCnt(currQStruct),currQStruct) = data.rightwrong(nTrial);
     qStructMat(currQStruct) = QuestUpdate(qStructMat(currQStruct), log10(data.tTestQ(qCnt(currQStruct),currQStruct)), data.rightwrongQ(qCnt(currQStruct),currQStruct));      
     qCnt(currQStruct) = qCnt(currQStruct) + 1;
 
+    %--------------------%
+    %        ITI         %
+    %--------------------%   
     % Get ready for next trial, keep stim flickering (dur = newITI)
     tic;
     nFlicker = 1;
@@ -737,8 +758,10 @@ for nTrial = 1:p.numTrials
         Screen('Flip', window);
     end
     t.trialTimes(nTrial,6) = toc; % duration of iti
- 
-    % Set Rest period
+
+    %--------------------%
+    %     Rest period    %
+    %--------------------%
     if nTrial == p.numTrialsPerSet*nSet
         rest = GetSecs;       
         restText = ['Set ' num2str(nSet) ' of ' num2str(p.numSets) ' completed! You can take a short break now, ' '' '\n' ...
@@ -753,6 +776,9 @@ for nTrial = 1:p.numTrials
     
 end
 
+%--------------------%
+%   End Experiment   %
+%--------------------%
 t.endTime = GetSecs-expStart; % Get endtime of the experiment in seconds
 
 % Draw some more text to the screen outside of the loop, close experiment
