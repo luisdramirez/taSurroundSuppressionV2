@@ -27,9 +27,9 @@ p.numQStructures = 12;
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+% deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
 % deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
-% deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
+deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -40,7 +40,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-deviceNumber = 8;
+% deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -253,14 +253,14 @@ p.stimConfigurationsNames
 
 % Setup basic timing of events.
 t.startTime = 2; % (s) delay before stimulus comes up when a new set starts (after a break)
-t.cueLeadTime = 1; %(s) time between onset of stimulus and cue
-t.cueTargetSOA = 1; % (s) time between cue and target
+t.cueLeadTime = .25; %(s) time between onset of stimulus and cue
+t.cueTargetSOA = .5; % (s) time between cue and target
 t.targetDur = .250; % (s) target duration
 t.responseTime = 1; % (s) response duration after target appears
-t.iti = 0.5; % (s) dwell period between trials
+t.iti = 0.0; % (s) dwell period between trials
 
 % Determine jitter for each trial
-t.jit=randsample(0:0.1:1,p.numTrials,true); % jitter to add to iti; ranges from nothing to 1s
+t.jit=randsample([0:0.25:2],p.numTrials,true); % jitter to add to iti; ranges from nothing to 1s
 t.trialDur = t.jit + (t.cueLeadTime + t.cueTargetSOA + t.targetDur + t.responseTime + t.iti); % (s) each trial duration
 t.runDur = sum(t.trialDur) + t.startTime*p.numBlocks; % (s) total run duration (does not include rest time)
 t.flicker = t.targetDur/2; % (s) how many times to shift phase.
