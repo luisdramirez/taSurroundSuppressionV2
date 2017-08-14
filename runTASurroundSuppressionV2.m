@@ -15,12 +15,12 @@ KbName('UnifyKeyNames');
 Screen('Preference', 'SkipSyncTests', 0);
 
 % Subject name
-p.subject = 'test';
+p.subject = 'Pre-Pilot_jitYW';
 
 % Trial Events Parameters
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 1; %20 for at least 40 trials per staircase
+p.repetitions = 25; %20 for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numQStructures = 12;
 
@@ -29,7 +29,7 @@ deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
 % deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
 % deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
-deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
+% deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -71,25 +71,8 @@ screenWidth = 47.5; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen,
 viewDistance = 58; % in cm, ideal distance: 1 cm equals 1 visual degree (testing room = 128; my screen = 58)
 visAngle = (2*atan2(screenWidth/2, viewDistance))*(180/pi); % Visual angle of the whole screen
 p.pixPerDeg = round(p.screenWidthPixels(3)/visAngle); % pixels per degree visual angle
-p.grey = 128; white = 255; green = [0 255 0]; blue = [0 0 255]; black = [0 0 0];
-%% SOUND SETUP
-% Initialize audio channel to play cues. Sets up cues by number of elements
-% in cueFreqs, which determines which frequency to play.
+grey = 128; white = 255; green = [0 255 0]; blue = [0 0 255]; black = [0 0 0]; red = [255 0 0]; yellow = [255 255 0];
 
-InitializePsychSound(1); % 1 for precise timing
-
-% Open audio device for low-latency output
-Fs = 44100;
-soundAmp = 1;
-reqlatencyclass = 2; % level 2 means take full control over the audio device, even if this causes other sound devices to fail or shutdown
-pahandle = PsychPortAudio('Open', [], [], reqlatencyclass, Fs, 1); % 1= single-channel
-t.cueDur = 0.125; % (s)
-
-cueFreqs = [523.25]; % [high C = precue]
-for iTone = 1:numel(cueFreqs)
-    tone = MakeBeep(cueFreqs(iTone), t.cueDur, Fs);
-    cueTones(iTone,:) = applyEnvelope(tone, Fs);
-end
 %% GRATING PARAMETERS
 % Setup up basic characteristic of gratings: fixed contrast, target
 % contrast, surround contrast. Center, surround, gap, and fixation
@@ -253,10 +236,12 @@ p.stimConfigurationsNames
 
 % Setup basic timing of events.
 t.startTime = 2; % (s) delay before stimulus comes up when a new set starts (after a break)
-t.cueLeadTime = .25; %(s) time between onset of stimulus and cue
-t.cueTargetSOA = .5; % (s) time between cue and target
+t.cueLeadTime = .250; %(s) time between onset of stimulus and cue
+t.cueDur = 0.125; % (s) duration of each cue
+t.cueTargetSOA = .500; % (s) time between cue and target
 t.targetDur = .250; % (s) target duration
 t.responseTime = 1; % (s) response duration after target appears
+t.feedback = 0.150; % (s) feedback duration
 t.iti = 0.0; % (s) dwell period between trials
 
 % Determine jitter for each trial
@@ -266,7 +251,7 @@ t.runDur = sum(t.trialDur) + t.startTime*p.numBlocks; % (s) total run duration (
 t.flicker = t.targetDur/2; % (s) how many times to shift phase.
 
 % Allocate space to record timing of events.
-t.numEvents = 6;
+t.numEvents = 7;
 t.trialTimes = nan(p.numTrials, t.numEvents); % [startTime cueLeadTime cueTargetSOA targetDur responseLeadTime responseTime iti] [2 1 1 .250 1 1 0.5]
 %% CREATE STIMULI
 % Generate center and surround grating, in addition to their masks. 
@@ -306,10 +291,10 @@ end
 %% WINDOW SETUP
 % Open window and where to display center targets.
 
-[window,rect] = Screen('OpenWindow', max(screens), p.grey,[],[],[],[],16);
+[window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-% load('MyGammaTable.mat');
-% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+load('MyGammaTable.mat');
+Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
 
 % Enable alpha blending
@@ -325,8 +310,24 @@ patchDeg = patch/p.pixPerDeg; % coordinates of targets in degrees
 
 Screen('TextStyle', window, 1);
 Screen('TextSize', window, 16);
-
 t.ifi = Screen('GetFlipInterval',window); % grab screen refresh rate
+%% SOUND SETUP
+% Initialize audio channel to play cues. Sets up cues by number of elements
+% in cueFreqs, which determines which frequency to play.
+
+InitializePsychSound(1); % 1 for precise timing
+
+% Open audio device for low-latency output
+Fs = 44100;
+soundAmp = 1;
+reqlatencyclass = 2; % level 2 means take full control over the audio device, even if this causes other sound devices to fail or shutdown
+pahandle = PsychPortAudio('Open', [], [], reqlatencyclass, Fs, 1); % 1= single-channel
+
+cueFreqs = 10.^linspace(log10(261.63),log10(880),round(t.cueTargetSOA/t.ifi)); % 
+for iTone = 1:numel(cueFreqs)
+    tone = MakeBeep(cueFreqs(iTone), t.ifi, Fs);
+    cueTones(iTone,:) = applyEnvelope(tone, Fs);
+end
 %% INITIALIZE QUEST
 % Give intial contrast, threshold to begin Quest
 tGuess = p.targContrast; % intial guess of contrast in log scale
@@ -388,7 +389,6 @@ welcomeStart = GetSecs;
 % Play tones for participant before experiment starts
 for nCue=1:size(cueTones,1)
    playSound(pahandle, cueTones(nCue,:)*soundAmp);
-   WaitSecs(1);
 end
 
 while 1
@@ -411,11 +411,11 @@ centerStimulus = nan(numPhases,1);
 targetStimulus = nan(numPhases,1);
 
 for nPhase = 1:numPhases
-    surroundTexture(:,:,1) = squeeze(surroundGrating(nPhase,:,:)) * (p.surroundContrast* p.grey ) + p.grey;
+    surroundTexture(:,:,1) = squeeze(surroundGrating(nPhase,:,:)) * (p.surroundContrast* grey ) + grey;
     surroundTexture(:,:,2) = surroundTransparencyMask;
     surroundStimulus(nPhase) = Screen('MakeTexture', window, surroundTexture);
     
-    centerTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.fixedStimContrast * p.grey ) + p.grey;
+    centerTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.fixedStimContrast * grey ) + grey;
     centerTexture(:,:,2) = centerTransparencyMask;
     centerStimulus(nPhase) = Screen('MakeTexture', window, centerTexture);  
 end
@@ -440,6 +440,8 @@ t.welcomeTime = welcomeTime;
 PsychHID('KbQueueCreate',deviceNumber);
 newShift = randsample(1:numPhases,1);
 
+cueRamp = 1; % cue ramping
+
 % Trial Loop starts here
 for nTrial = 1:p.numTrials
     currQStruct = p.trialEvents(nTrial,end-1); % which is the currect QUEST structure
@@ -461,7 +463,7 @@ for nTrial = 1:p.numTrials
         p.contrastThreshold
         
     for nPhase = 1:numPhases
-        targetTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.contrastThreshold * p.grey ) + p.grey; 
+        targetTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.contrastThreshold * grey ) + grey; 
         targetTexture(:,:,2) = centerTransparencyMask;
         targetStimulus(nPhase) = Screen('MakeTexture', window, targetTexture); 
     end
@@ -520,13 +522,7 @@ for nTrial = 1:p.numTrials
         Screen('Flip', window);      
     end
     t.trialTimes(nTrial,2) = toc; % duration of cueLeadTime
-    
-    % Play pre-cue if valid!
-    if p.trialEvents(nTrial,end) == 1
-        playSound(pahandle, cueTones(1,:)*soundAmp);
-        preCueTime = GetSecs - expStart;
-    end
-    
+      
     %--------------------%
     %    cue-targ SOA    % 
     %--------------------%
@@ -538,6 +534,10 @@ for nTrial = 1:p.numTrials
         if GetSecs >= (startCueTargetSOA + t.cueTargetSOA)
             break
         end
+        % Play pre-cue if valid!
+        if p.trialEvents(nTrial,end) == 1
+            playSound(pahandle, cueTones(nFlips,:)*soundAmp);          
+        end   
         % determine new phase if it's time to shift 
         if nFlips == 1
             oldShift = newShift;
@@ -617,10 +617,10 @@ for nTrial = 1:p.numTrials
         % Draw surroundStimulus if not baseline condition
         if p.trialEvents(nTrial,1) ~= 5 && p.trialEvents(nTrial,1) ~= 6  
             Screen('DrawTexture', window, surroundStimulus(newSurrShift), [], CenterRectOnPoint([0 0 p.surroundSize p.surroundSize], centerX, centerY), p.trialEvents(nTrial,3))
-            Screen('FillOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)')
-            Screen('FillOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(2), centerY)')
-            Screen('FrameOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)', p.gapSize, p.gapSize)
-            Screen('FrameOval', window, p.grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(2), centerY)', p.gapSize, p.gapSize)
+            Screen('FillOval', window, grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)')
+            Screen('FillOval', window, grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(2), centerY)')
+            Screen('FrameOval', window, grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(1), centerY)', p.gapSize, p.gapSize)
+            Screen('FrameOval', window, grey, CenterRectOnPoint([0 0 p.centerSize+p.gapSize p.centerSize+p.gapSize], patch(2), centerY)', p.gapSize, p.gapSize)
         end        
         % Determine which target to change
         if mod(p.trialEvents(nTrial,1),2) ~= 0 % if stimConfig is odd, t1 contrast changes (left target)
@@ -636,7 +636,7 @@ for nTrial = 1:p.numTrials
         end        
         % Draw Fixation
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
-        Screen('FillOval', window, green, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
+        Screen('FillOval', window, blue, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
         Screen('Flip', window);
         % GetClicks;        
         % Stim duration
@@ -680,14 +680,14 @@ for nTrial = 1:p.numTrials
         Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
-        Screen('FillOval', window, green, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
+        Screen('FillOval', window, blue, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
         Screen('Flip', window);
     end
     t.trialTimes(nTrial,5) = toc; % duration of responseTime
     
     % Get Behavioral Response
     [pressed, firstPress] = PsychHID('KbQueueCheck', deviceNumber); % check response
-    whichPress = find(firstPress);                        
+    whichPress = find(firstPress); missed = 0; badPress = 0;                        
     if any(ismember(whichPress, KbName('ESCAPE')))
         Screen('CloseAll');
         ListenChar(1);
@@ -695,10 +695,12 @@ for nTrial = 1:p.numTrials
         error('User exited program.');                   
     elseif sum(firstPress) == 0 % missed response
         data.rightwrong(nTrial) = 0;
+        missed = 1;
         data.qMissedTrials(currQStruct) = data.qMissedTrials(currQStruct) + 1;
         PsychHID('KbQueueStop', deviceNumber);
     elseif whichPress(1) ~= keyPressNumbers(1) && whichPress(1) ~= keyPressNumbers(2) % irrelevant key press
         data.rightwrong(nTrial) = 0;
+        badPress = 1;
         data.qBadPresses(currQStruct) = data.qBadPresses(currQStruct) + 1;
         PsychHID('KbQueueStop', deviceNumber);
     elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 1) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 2) % correct response
@@ -716,7 +718,59 @@ for nTrial = 1:p.numTrials
     data.rightwrongQ(qCnt(currQStruct),currQStruct) = data.rightwrong(nTrial);
     qStructMat(currQStruct) = QuestUpdate(qStructMat(currQStruct), log10(data.tTestQ(qCnt(currQStruct),currQStruct)), data.rightwrongQ(qCnt(currQStruct),currQStruct));      
     qCnt(currQStruct) = qCnt(currQStruct) + 1;
-
+    
+    %--------------------%
+    %      Feedback      %
+    %--------------------%
+    % Determine color of fixation feedback
+    if data.rightwrong(nTrial) == 1 % correct = green
+        feedbackColor = green;
+    elseif data.rightwrong(nTrial) == 0 && (missed == 0 && badPress == 0) == 1 % incorrect = red
+        feedbackColor = red;
+    elseif missed == 1 % missed = yellow
+        feedbackColor = yellow;
+    elseif badPress == 1 % bad press = black
+        feedbackColor = black;
+    end
+    % Keep stim flickering for feedback time, fixation becomes green (dur = t.feedback)
+    tic;
+    nFlicker = 1;
+    startFeedback = GetSecs;
+    for nFlips = 1:round(t.feedback/t.ifi)
+        if GetSecs >= (startFeedback + t.feedback)
+            break
+        end
+        % determine new phase if it's time to shift 
+        if nFlips == 1
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+        elseif GetSecs >= startFeedback + t.flicker*nFlicker
+            oldShift = newShift;
+            newShift = randsample(1:numPhases,1);
+            % make sure phase isn't the same as the previous shift
+            if newShift == oldShift && oldShift ~= numPhases
+               newShift = oldShift + 1;
+            elseif newShift == oldShift && oldShift == numPhases
+                newShift = 1;
+            end
+            nFlicker = nFlicker + 1; 
+        end
+        % Draw centerStimulus1
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(1), centerY), p.trialEvents(nTrial,2))
+        % Draw centerStimulus2
+        Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
+        % Draw Fixation
+        Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
+        Screen('FillOval', window, feedbackColor, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
+        Screen('Flip', window);
+    end
+    t.trialTimes(nTrial,6) = toc; % duration of feedback
+    
     %--------------------%
     %        ITI         %
     %--------------------%   
@@ -757,7 +811,7 @@ for nTrial = 1:p.numTrials
         Screen('FillOval', window, white, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
         Screen('Flip', window);
     end
-    t.trialTimes(nTrial,6) = toc; % duration of iti
+    t.trialTimes(nTrial,7) = toc; % duration of iti
 
     %--------------------%
     %     Rest period    %
