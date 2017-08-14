@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'Pre-Pilot_jitLR';
+subject = 'Pre-Pilot_jitYW';
 
 plotData = 'Yes';
 

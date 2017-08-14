@@ -20,14 +20,14 @@ p.subject = 'Pre-Pilot_jitYW';
 % Trial Events Parameters
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 25; %20 for at least 40 trials per staircase
+p.repetitions = 1; %20 for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numQStructures = 12;
 
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
 % deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
 % deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
 
@@ -40,7 +40,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -237,7 +237,6 @@ p.stimConfigurationsNames
 % Setup basic timing of events.
 t.startTime = 2; % (s) delay before stimulus comes up when a new set starts (after a break)
 t.cueLeadTime = .250; %(s) time between onset of stimulus and cue
-t.cueDur = 0.125; % (s) duration of each cue
 t.cueTargetSOA = .500; % (s) time between cue and target
 t.targetDur = .250; % (s) target duration
 t.responseTime = 1; % (s) response duration after target appears
@@ -293,8 +292,8 @@ end
 
 [window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('MyGammaTable.mat');
-Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+% load('MyGammaTable.mat');
+% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
 HideCursor;
 
 % Enable alpha blending
