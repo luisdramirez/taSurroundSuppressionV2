@@ -27,9 +27,11 @@ p.numQStructures = 12;
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+% deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
 % deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
 % deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
+% deviceString = 'CHICONY USB Keyboard'; % yurika's keyboard?
+deviceString = 'Wired USB Keyboard';
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -40,7 +42,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-deviceNumber = 8;
+% deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -67,8 +69,8 @@ cd(expDir);
 
 screens = Screen('Screens'); % look at available screens
 p.screenWidthPixels = Screen('Rect', max(screens));
-screenWidth = 47.5; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen, my screen (47.5cm), testing room = 42
-viewDistance = 58; % in cm, ideal distance: 1 cm equals 1 visual degree (testing room = 128; my screen = 58)
+screenWidth = 34; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen, my screen (47.5cm), testing room 304 = 42, troom 207 = 34
+viewDistance = 57; % in cm, ideal distance: 1 cm equals 1 visual degree (testing room 304 = 128; troom 207 = 58, my screen = 58)
 visAngle = (2*atan2(screenWidth/2, viewDistance))*(180/pi); % Visual angle of the whole screen
 p.pixPerDeg = round(p.screenWidthPixels(3)/visAngle); % pixels per degree visual angle
 grey = 128; white = 255; green = [0 255 0]; blue = [0 0 255]; black = [0 0 0]; red = [255 0 0]; yellow = [255 255 0];
@@ -292,8 +294,8 @@ end
 
 [window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-% load('MyGammaTable.mat');
-% Screen('LoadNormalizedGammaTable', window, repmat(gammaTable, [1 3]));
+load('linearizedCLUT.mat');
+Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
 HideCursor;
 
 % Enable alpha blending
