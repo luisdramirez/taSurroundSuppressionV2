@@ -15,7 +15,7 @@ KbName('UnifyKeyNames');
 Screen('Preference', 'SkipSyncTests', 0);
 
 % Subject name
-p.subject = 'Pre-Pilot_jitYW';
+p.subject = 'test';
 
 % Trial Events Parameters
 p.cueValidity = 0.75;
@@ -403,7 +403,8 @@ PsychHID('KbQueueStop', deviceNumber);
 data.rightwrong = nan(p.numTrials, 1); % collect behavioral response
 data.cThresholdsQ = nan(p.minNumTrialsPerSC,p.numQStructures);  %structure to hold contrast thresholds per trial
 qCnt = ones(1,p.numQStructures); % determines which row to access for a structure in cThresholdsQ
-
+missed = zeros(p.numTrials,1); badPress = zeros(p.numTrials,1);
+ 
 % Make surround and center textures before trial loop
 surroundStimulus = nan(numPhases,1);
 centerStimulus = nan(numPhases,1);
@@ -435,6 +436,8 @@ nSet = 1; % set counter
 expStart = GetSecs; % baseline experiment start time
 welcomeTime = GetSecs - welcomeStart;
 t.welcomeTime = welcomeTime;
+totTrials = p.numTrials;
+nTrial = 1;
 
 PsychHID('KbQueueCreate',deviceNumber);
 newShift = randsample(1:numPhases,1);
@@ -442,7 +445,18 @@ newShift = randsample(1:numPhases,1);
 cueRamp = 1; % cue ramping
 
 % Trial Loop starts here
-for nTrial = 1:p.numTrials
+for currTrial = 1:totTrials
+    % Go back 1 trial if the previous trial was missed/irrelevant press
+    if currTrial > 1 
+        if missed(nTrial-1) == 1 || badPress(nTrial-1) == 1
+            nTrial = nTrial-1;
+            totTrials = totTrials+1;
+            missed(nTrial) = 0; badPress(nTrial) = 0;
+        elseif missed(nTrial-1) == 0 || badPress(nTrial-1) == 0
+            nTrail = nTrial + 1;
+        end
+    end
+    
     currQStruct = p.trialEvents(nTrial,end-1); % which is the currect QUEST structure
     newITI = t.iti + t.jit(nTrial); % what is this trial new iti
     
@@ -686,7 +700,7 @@ for nTrial = 1:p.numTrials
     
     % Get Behavioral Response
     [pressed, firstPress] = PsychHID('KbQueueCheck', deviceNumber); % check response
-    whichPress = find(firstPress); missed = 0; badPress = 0;                        
+    whichPress = find(firstPress);                       
     if any(ismember(whichPress, KbName('ESCAPE')))
         Screen('CloseAll');
         ListenChar(1);
@@ -694,12 +708,12 @@ for nTrial = 1:p.numTrials
         error('User exited program.');                   
     elseif sum(firstPress) == 0 % missed response
         data.rightwrong(nTrial) = 0;
-        missed = 1;
+        missed(nTrial) = 1;
         data.qMissedTrials(currQStruct) = data.qMissedTrials(currQStruct) + 1;
         PsychHID('KbQueueStop', deviceNumber);
     elseif whichPress(1) ~= keyPressNumbers(1) && whichPress(1) ~= keyPressNumbers(2) % irrelevant key press
         data.rightwrong(nTrial) = 0;
-        badPress = 1;
+        badPress(nTrial) = 1;
         data.qBadPresses(currQStruct) = data.qBadPresses(currQStruct) + 1;
         PsychHID('KbQueueStop', deviceNumber);
     elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 1) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 2) % correct response
@@ -714,9 +728,12 @@ for nTrial = 1:p.numTrials
     %    Update Quest    %
     %--------------------%
     data.tTestQ(qCnt(currQStruct),currQStruct) = 10^QuestQuantile(qStructMat(currQStruct)); % Recommended by Pelli (1987)
-    data.rightwrongQ(qCnt(currQStruct),currQStruct) = data.rightwrong(nTrial);
-    qStructMat(currQStruct) = QuestUpdate(qStructMat(currQStruct), log10(data.tTestQ(qCnt(currQStruct),currQStruct)), data.rightwrongQ(qCnt(currQStruct),currQStruct));      
-    qCnt(currQStruct) = qCnt(currQStruct) + 1;
+    % insert repsonse to current quest structure
+    data.rightwrongQ(qCnt(currQStruct),currQStruct) = data.rightwrong(nTrial); 
+    %update current quest structure 
+    qStructMat(currQStruct) = QuestUpdate(qStructMat(currQStruct), log10(data.tTestQ(qCnt(currQStruct),currQStruct)), data.rightwrongQ(qCnt(currQStruct),currQStruct));       
+    %update the number of times the current quest structure has been updated (keeps track of how many trials are in the structure)
+    qCnt(currQStruct) = qCnt(currQStruct) + 1; 
     
     %--------------------%
     %      Feedback      %
@@ -724,11 +741,11 @@ for nTrial = 1:p.numTrials
     % Determine color of fixation feedback
     if data.rightwrong(nTrial) == 1 % correct = green
         feedbackColor = green;
-    elseif data.rightwrong(nTrial) == 0 && (missed == 0 && badPress == 0) == 1 % incorrect = red
+    elseif data.rightwrong(nTrial) == 0 && (missed(nTrial) == 0 && badPress(nTrial) == 0) == 1 % incorrect = red
         feedbackColor = red;
-    elseif missed == 1 % missed = yellow
+    elseif missed(nTrial) == 1 % missed = yellow
         feedbackColor = yellow;
-    elseif badPress == 1 % bad press = black
+    elseif badPress(nTrial) == 1 % bad press = black
         feedbackColor = black;
     end
     % Keep stim flickering for feedback time, fixation becomes green (dur = t.feedback)
