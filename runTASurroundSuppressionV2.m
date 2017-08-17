@@ -27,11 +27,11 @@ p.numQStructures = 12;
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+% deviceString = 'Wired USB Keyboard'; % testing room 207
 % deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
 % deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
 % deviceString = 'CHICONY USB Keyboard'; % yurika's keyboard?
-deviceString = 'Wired USB Keyboard';
 
 for i = 1:length(productNames)
     if strcmp(productNames{i}, deviceString)
@@ -42,7 +42,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -69,11 +69,12 @@ cd(expDir);
 
 screens = Screen('Screens'); % look at available screens
 p.screenWidthPixels = Screen('Rect', max(screens));
-screenWidth = 34; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen, my screen (47.5cm), testing room 304 = 42, troom 207 = 34
-viewDistance = 57; % in cm, ideal distance: 1 cm equals 1 visual degree (testing room 304 = 128; troom 207 = 58, my screen = 58)
+screenWidth = 47.5; % 29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen, my screen (47.5cm), testing room 304 = 42, troom 207 = 34
+viewDistance = 58; % in cm, ideal distance: 1 cm equals 1 visual degree (testing room 304 = 128; troom 207 = 58, my screen = 58)
 visAngle = (2*atan2(screenWidth/2, viewDistance))*(180/pi); % Visual angle of the whole screen
 p.pixPerDeg = round(p.screenWidthPixels(3)/visAngle); % pixels per degree visual angle
-grey = 128; white = 255; green = [0 255 0]; blue = [0 0 255]; black = [0 0 0]; red = [255 0 0]; yellow = [255 255 0];
+grey = 128; white = 255; green = [0 255 0]; blue = [0 0 255]; black = [0 0 0]; red = [220 20 60]; 
+dimgrey = [105 105 105]; yellow = [255 255 0]; magenta = [255 0 255]; cyan = [0 255 255];
 
 %% GRATING PARAMETERS
 % Setup up basic characteristic of gratings: fixed contrast, target
@@ -122,6 +123,7 @@ p.trialEvents = [F1]; % [stimConfiguration]
 p.numTrials = size(p.trialEvents,1);
 p.numTrialsPerBlock = p.numTrials/p.numBlocks;
 p.numTrialsPerSet = p.numTrialsPerBlock*p.minNumBlocks;
+p.numTrialsPerBreak = p.numTrialsPerSet;
 p.numSets = p.numTrials/p.numTrialsPerSet;
 p.minNumTrialsPerSC = p.repetitions*2; 
 
@@ -220,17 +222,18 @@ p.trialEvents(:,end+1) = trialCues; % add trial cues
 %---------------------%
 % Check Distributions %
 %---------------------%
+% trialCueDistrib should be all 1s (num of attended and unattended should be equal to the cue validity ratio*numRepetions). 
 trial_cueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); % [validity x configuration]
 for nConfig = 1:length(p.stimConfigurations)
     for nCue = 1:length(p.trialCuesNames)
         if nCue == 1
-            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end-1) == nCue) == p.numAttTrialsPerComb*p.repetitions;
+            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == p.numAttTrialsPerComb*p.repetitions;
         elseif nCue == 2
-            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end-1) == nCue) == (p.minNumBlocks - p.numAttTrialsPerComb)*p.repetitions;
+            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == (p.minNumBlocks - p.numAttTrialsPerComb)*p.repetitions;
         end
     end
 end
-trial_cueDistrib 
+trial_cueDistrib; 
 p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents % [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
 p.stimConfigurationsNames
@@ -242,7 +245,7 @@ t.cueLeadTime = .250; %(s) time between onset of stimulus and cue
 t.cueTargetSOA = .500; % (s) time between cue and target
 t.targetDur = .250; % (s) target duration
 t.responseTime = 1; % (s) response duration after target appears
-t.feedback = 0.150; % (s) feedback duration
+t.feedback = 0.250; % (s) feedback duration
 t.iti = 0.0; % (s) dwell period between trials
 
 % Determine jitter for each trial
@@ -294,8 +297,8 @@ end
 
 [window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('linearizedCLUT.mat');
-Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
+% load('linearizedCLUT.mat');
+% Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
 HideCursor;
 
 % Enable alpha blending
@@ -433,32 +436,27 @@ centerMask = Screen('MakeTexture', window, centerTransparencyMask);
 % flicker passes. Each loop ensures each phase is different from the
 % previous. 
 
-% Initialize timing and counters
-nSet = 1; % set counter
+% Initialize timing, counters, some vars
+nSet = 0; % set counter
+nBreak = 1; %rest counter
 expStart = GetSecs; % baseline experiment start time
 welcomeTime = GetSecs - welcomeStart;
 t.welcomeTime = welcomeTime;
-totTrials = p.numTrials;
-nTrial = 1;
-
-PsychHID('KbQueueCreate',deviceNumber);
-newShift = randsample(1:numPhases,1);
-
+nTrial = 1; % completed trials, only updated if previous trial is successful
+currTrial = 0; % attempted trials, updates every loop
+newShift = randsample(1:numPhases,1); % prelim phase shift
 cueRamp = 1; % cue ramping
 
+PsychHID('KbQueueCreate',deviceNumber);
+
 % Trial Loop starts here
-for currTrial = 1:totTrials
-    % Go back 1 trial if the previous trial was missed/irrelevant press
-    if currTrial > 1 
-        if missed(nTrial-1) == 1 || badPress(nTrial-1) == 1
-            nTrial = nTrial-1;
-            totTrials = totTrials+1;
-            missed(nTrial) = 0; badPress(nTrial) = 0;
-        elseif missed(nTrial-1) == 0 || badPress(nTrial-1) == 0
-            nTrail = nTrial + 1;
-        end
-    end
+while nTrial <= p.numTrials
     
+    % Check if retry is necessary
+    if missed(nTrial) == 1 || badPress(nTrial) == 1
+        missed(nTrial) = 0; badPress(nTrial) = 0;
+    end
+       
     currQStruct = p.trialEvents(nTrial,end-1); % which is the currect QUEST structure
     newITI = t.iti + t.jit(nTrial); % what is this trial new iti
     
@@ -474,9 +472,13 @@ for currTrial = 1:totTrials
     % Cap max contrast
     if p.contrastThreshold > 1
         p.contrastThreshold = 1;
-    end    
-        p.contrastThreshold
-        
+    end
+    
+    p.contrastThreshold;
+    
+    %--------------------%
+    %   Texture Update   %
+    %--------------------%
     for nPhase = 1:numPhases
         targetTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.contrastThreshold * grey ) + grey; 
         targetTexture(:,:,2) = centerTransparencyMask;
@@ -488,7 +490,12 @@ for currTrial = 1:totTrials
     %--------------------%
     % Draw the fixation at the beginning of a set
     tic;
-    if nTrial == 1 || nTrial == p.numTrialsPerSet*(nSet-1) + 1
+    if currTrial == 0
+        Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
+        Screen('FillOval', window, white, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation]);
+        Screen('Flip', window);
+        WaitSecs(t.startTime);
+    elseif currTrial > 1 && currTrial == p.numTrialsPerBreak*(nBreak-1) 
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
         Screen('FillOval', window, white, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation]);
         Screen('Flip', window);
@@ -587,8 +594,7 @@ for currTrial = 1:totTrials
     % Set up button press for behavioral response
     PsychHID('KbQueueStart', deviceNumber);
     PsychHID('KbQueueFlush', deviceNumber);
-    
-    
+        
     %--------------------%
     %       Target       %
     %--------------------%
@@ -651,7 +657,7 @@ for currTrial = 1:totTrials
         end        
         % Draw Fixation
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
-        Screen('FillOval', window, blue, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
+        Screen('FillOval', window, dimgrey, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
         Screen('Flip', window);
         % GetClicks;        
         % Stim duration
@@ -695,7 +701,7 @@ for currTrial = 1:totTrials
         Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
-        Screen('FillOval', window, blue, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
+        Screen('FillOval', window, dimgrey, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
         Screen('Flip', window);
     end
     t.trialTimes(nTrial,5) = toc; % duration of responseTime
@@ -729,13 +735,15 @@ for currTrial = 1:totTrials
     %--------------------%
     %    Update Quest    %
     %--------------------%
-    data.tTestQ(qCnt(currQStruct),currQStruct) = 10^QuestQuantile(qStructMat(currQStruct)); % Recommended by Pelli (1987)
-    % insert repsonse to current quest structure
-    data.rightwrongQ(qCnt(currQStruct),currQStruct) = data.rightwrong(nTrial); 
-    %update current quest structure 
-    qStructMat(currQStruct) = QuestUpdate(qStructMat(currQStruct), log10(data.tTestQ(qCnt(currQStruct),currQStruct)), data.rightwrongQ(qCnt(currQStruct),currQStruct));       
-    %update the number of times the current quest structure has been updated (keeps track of how many trials are in the structure)
-    qCnt(currQStruct) = qCnt(currQStruct) + 1; 
+    if missed(nTrial) == 0 && badPress(nTrial) == 0 % if the trial was successful, update quest
+        data.tTestQ(qCnt(currQStruct),currQStruct) = 10^QuestQuantile(qStructMat(currQStruct)); % Recommended by Pelli (1987)
+        % insert repsonse to current quest structure
+        data.rightwrongQ(qCnt(currQStruct),currQStruct) = data.rightwrong(nTrial); 
+        % update current quest structure 
+        qStructMat(currQStruct) = QuestUpdate(qStructMat(currQStruct), log10(data.tTestQ(qCnt(currQStruct),currQStruct)), data.rightwrongQ(qCnt(currQStruct),currQStruct));       
+        % update the number of times the current quest structure has been updated (keeps track of how many trials are in the structure)
+        qCnt(currQStruct) = qCnt(currQStruct) + 1; 
+    end
     
     %--------------------%
     %      Feedback      %
@@ -745,8 +753,8 @@ for currTrial = 1:totTrials
         feedbackColor = green;
     elseif data.rightwrong(nTrial) == 0 && (missed(nTrial) == 0 && badPress(nTrial) == 0) == 1 % incorrect = red
         feedbackColor = red;
-    elseif missed(nTrial) == 1 % missed = yellow
-        feedbackColor = yellow;
+    elseif missed(nTrial) == 1 % missed = blue
+        feedbackColor = blue;
     elseif badPress(nTrial) == 1 % bad press = black
         feedbackColor = black;
     end
@@ -830,20 +838,35 @@ for currTrial = 1:totTrials
         Screen('Flip', window);
     end
     t.trialTimes(nTrial,7) = toc; % duration of iti
-
+    
     %--------------------%
-    %     Rest period    %
+    %       Updates      %   
     %--------------------%
-    if nTrial == p.numTrialsPerSet*nSet
+    % if no miss or bad press, update trial index and decreases number trials needed to break out of loop 
+    if missed(nTrial) == 0 && badPress(nTrial) == 0
+       nTrial = nTrial+1;
+    end    
+    % Update number of attempted trials
+    currTrial = currTrial+1;   
+    % Update sets completed
+    if mod(nTrial,p.numTrialsPerSet) == 0
+        nSet = nSet+1;
+    end
+    
+    %--------------------%
+    %     Rest Period    %
+    %--------------------%
+    if mod(currTrial,p.numTrialsPerBreak) == 0       
         rest = GetSecs;       
-        restText = ['Set ' num2str(nSet) ' of ' num2str(p.numSets) ' completed! You can take a short break now, ' '' '\n' ...
-            'or press the DOWN arrow key to continue' '\n' '\n' ];
+        restText = ['You can take a short break now, ' '' '\n' ...
+            'or press the DOWN arrow key to continue' '\n' '\n'...
+            'Progress: set ' num2str(nSet) ' of ' num2str(p.numSets) ' complete.'];
         DrawFormattedText(window, restText, 'center', 'center', white);
-        Screen('Flip', window);       
-        nSet = nSet+1;         
+        Screen('Flip', window);                
         pmButtonBreak = 0; 
         KbWait; 
-        t.restTime(nSet) = (GetSecs-rest)/60;
+        t.restTime(nBreak) = (GetSecs-rest)/60;
+        nBreak = nBreak+1;
     end
     
 end
@@ -874,5 +897,5 @@ cd(dataDir);
 theData(p.runNumber).t = t;
 theData(p.runNumber).p = p;
 theData(p.runNumber).data = data;
-eval(['save vTA_surrSuppression_', p.subject, '.mat theData'])
+eval(['save vTA_surrSuppressionV2_', p.subject, '.mat theData'])
 cd(expDir);
