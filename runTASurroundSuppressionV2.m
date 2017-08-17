@@ -477,7 +477,7 @@ while nTrial <= p.numTrials
     p.contrastThreshold;
     
     %--------------------%
-    %   Texture Update   %
+    %   Target Update   %
     %--------------------%
     for nPhase = 1:numPhases
         targetTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.contrastThreshold * grey ) + grey; 
@@ -488,7 +488,7 @@ while nTrial <= p.numTrials
     %--------------------%
     %        Begin       %
     %--------------------%
-    % Draw the fixation at the beginning of a set
+    % Draw just the fixation at the beginning, or after a break
     tic;
     if currTrial == 0
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
@@ -842,9 +842,15 @@ while nTrial <= p.numTrials
     %--------------------%
     %       Updates      %   
     %--------------------%
-    % if no miss or bad press, update trial index and decreases number trials needed to break out of loop 
+    % if no miss or bad press, update trial index || reshuffle trial into trial order 
     if missed(nTrial) == 0 && badPress(nTrial) == 0
-       nTrial = nTrial+1;
+        nTrial = nTrial+1;
+    elseif missed(nTrial) == 1 || badPress(nTrial) == 1
+        currTrialInfo = p.trialEvents(nTrial,:); % store current trial
+        p.trialEvents(nTrial,:) = []; % delete current trial from trial events
+        p.trialEvents(end+1,:) = currTrialInfo; % add current trial to end of trial events
+        p.trialEvents = [p.trialEvents(1:nTrial-1,:); Shuffle(p.trialEvents(nTrial:end,:),2)]; % shuffle trial events
+        p.trialEvents
     end    
     % Update number of attempted trials
     currTrial = currTrial+1;   
