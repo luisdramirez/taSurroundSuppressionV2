@@ -1,5 +1,5 @@
 
-% How does temporal attention influence tuned normalization?
+% How does temporal attention (manipulate uncertainty) influence tuned normalization?
 
 %% PREPARE
 % Clear workspace, setup trial event parameters (subject name, cue
@@ -54,7 +54,6 @@ t.mySeed = sum(100*clock);
 rng(t.mySeed); % Make sure to start with a random seed
 t.theDate = datestr(now,'yymmdd'); % Collect today's date
 t.timeStamp = datestr(now,'HHMM'); % Timestamp
-
 cd(dataDir);
 if exist(['vTA_surrSuppressionV2_', p.subject, '.mat'],'file') ~= 0
     load(['vTA_surrSuppressionV2_', p.subject, '.mat']);
@@ -138,7 +137,6 @@ elseif mod(p.runNumber,2) == 0
 end
 % Surround orientation is dependent on collinear/orthogonal condition
 p.surroundOrientation = nan(size(p.targetsOrientation));
-
 for nTrial = 1:p.numTrials
    if p.trialEvents(nTrial,1) == 3 || p.trialEvents(nTrial,1) == 4 %  add 90 degrees if orthogonal trial
        p.surroundOrientation(nTrial) = p.targetsOrientation(nTrial) + 90;
@@ -170,7 +168,6 @@ p.trialEvents(:,end+1) = whichTarget; % Add target info to trialEvents
 % Assign cue validity for each trial
 p.trialCuesNames = {'Attended' 'Unattended'};
 trialCues = zeros(p.numTrials,1);
-
 % assign cues to sets of unique combinations 
 for nStimConfig = 1:length(p.stimConfigurations)
    configIndx = find(p.trialEvents(:,1)==p.stimConfigurations(nStimConfig));
@@ -194,7 +191,6 @@ attQCnt = 1;
 unAttQCnt = 1;
 totAttTrials = p.numAttTrialsPerComb*length(p.stimConfigurations)*p.repetitions;
 totUnAttTrials = p.numTrials-totAttTrials;
-
 % Before shuffling, every 2 trials is 1 condition (1 left and right target trial). These loops assign the
 % same structure every 2 trials, depending on whether a trial is an
 % attended or unattended trial.
@@ -214,7 +210,6 @@ for nUnAtt = 1+totAttTrials:totAttTrials+totUnAttTrials
        unAttQCnt = 1;
    end
 end
-
 p.trialEvents(:,end+1) = qStructure; % add quest structure assignment
 p.trialEvents(:,end+1) = trialCues; % add trial cues 
 % [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
@@ -328,6 +323,7 @@ reqlatencyclass = 2; % level 2 means take full control over the audio device, ev
 pahandle = PsychPortAudio('Open', [], [], reqlatencyclass, Fs, 1); % 1= single-channel
 
 cueFreqs = 10.^linspace(log10(261.63),log10(880),round(t.cueTargetSOA/t.ifi)); % 
+%Create tones
 for iTone = 1:numel(cueFreqs)
     tone = MakeBeep(cueFreqs(iTone), t.ifi, Fs);
     cueTones(iTone,:) = applyEnvelope(tone, Fs);
@@ -352,7 +348,7 @@ q10 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % collUnC
 q11= QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % orthUnCued1
 q12 = QuestCreate(tGuess, tGuessSd, p.pThreshold, beta, delta, gamma); % nsUnCued1
 
-qStructMat = [q1 q2 q3 q4 q5 q6 q7 q8 q9 q10 q11 q12];
+qStructVect = [q1 q2 q3 q4 q5 q6 q7 q8 q9 q10 q11 q12];
 
 q1.normalizePdf = 1; % This adds a few ms per call to QuestUpdate, but otherwise the pdf will underflow after about 1000 trials.
 q2.normalizePdf = 1;
@@ -445,39 +441,37 @@ t.welcomeTime = welcomeTime;
 nTrial = 1; % completed trials, only updated if previous trial is successful
 currTrial = 0; % attempted trials, updates every loop
 newShift = randsample(1:numPhases,1); % prelim phase shift
-cueRamp = 1; % cue ramping
 
 PsychHID('KbQueueCreate',deviceNumber);
 
-% Trial Loop starts here
 while nTrial <= p.numTrials
     
     % Check if retry is necessary
     if missed(nTrial) == 1 || badPress(nTrial) == 1
         missed(nTrial) = 0; badPress(nTrial) = 0;
     end
-       
-    currQStruct = p.trialEvents(nTrial,end-1); % which is the currect QUEST structure
-    newITI = t.iti + t.jit(nTrial); % what is this trial new iti
     
     %--------------------%
-    %        QUEST       %
+    %    Index Updates   %
+    %--------------------%    
+    whichTarget = p.trialEvents(nTrial,4);
+    whichQStruct = p.trialEvents(nTrial,end-1); % which is the currect QUEST structure
+    newITI = t.iti + t.jit(nTrial); % what is this trial's new iti
+
+    %--------------------%
+    %  Threshold Update  %
     %--------------------%
     % Update contrast threshold with respect to the correct QUEST structure
-    p.contrastThreshold = 10^QuestMean(qStructMat(currQStruct));
-    data.cThresholdsQ(qCnt(currQStruct),currQStruct) = p.contrastThreshold;
-    
-    whichTarget = p.trialEvents(nTrial,4);
-    
+    p.contrastThreshold = 10^QuestMean(qStructVect(whichQStruct));
+    data.cThresholdsQ(qCnt(whichQStruct),whichQStruct) = p.contrastThreshold;
     % Cap max contrast
     if p.contrastThreshold > 1
         p.contrastThreshold = 1;
-    end
-    
+    end    
     p.contrastThreshold;
     
     %--------------------%
-    %   Target Update   %
+    %    Target Update   %
     %--------------------%
     for nPhase = 1:numPhases
         targetTexture(:,:,1) = squeeze(centerGratings(nPhase,:,:)) * ( p.contrastThreshold * grey ) + grey; 
@@ -486,16 +480,11 @@ while nTrial <= p.numTrials
     end
     
     %--------------------%
-    %        Begin       %
+    %      Begin Exp     %
     %--------------------%
     % Draw just the fixation at the beginning, or after a break
     tic;
-    if currTrial == 0
-        Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
-        Screen('FillOval', window, white, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation]);
-        Screen('Flip', window);
-        WaitSecs(t.startTime);
-    elseif currTrial > 1 && currTrial == p.numTrialsPerBreak*(nBreak-1) 
+    if currTrial == 0 || (currTrial > 1 && currTrial == p.numTrialsPerBreak*(nBreak-1))
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
         Screen('FillOval', window, white, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation]);
         Screen('Flip', window);
@@ -546,7 +535,7 @@ while nTrial <= p.numTrials
     t.trialTimes(nTrial,2) = toc; % duration of cueLeadTime
       
     %--------------------%
-    %    cue-targ SOA    % 
+    %         Cue        % 
     %--------------------%
     % Keep stim flickering after cue plays (dur = t.cueTargetSOA)   
     tic;
@@ -591,7 +580,7 @@ while nTrial <= p.numTrials
     end
     t.trialTimes(nTrial,3) = toc; % duration of cueTargetSOA
     
-    % Set up button press for behavioral response
+    % Prepare button press for behavioral response
     PsychHID('KbQueueStart', deviceNumber);
     PsychHID('KbQueueFlush', deviceNumber);
         
@@ -717,12 +706,12 @@ while nTrial <= p.numTrials
     elseif sum(firstPress) == 0 % missed response
         data.rightwrong(nTrial) = 0;
         missed(nTrial) = 1;
-        data.qMissedTrials(currQStruct) = data.qMissedTrials(currQStruct) + 1;
+        data.qMissedTrials(whichQStruct) = data.qMissedTrials(whichQStruct) + 1;
         PsychHID('KbQueueStop', deviceNumber);
     elseif whichPress(1) ~= keyPressNumbers(1) && whichPress(1) ~= keyPressNumbers(2) % irrelevant key press
         data.rightwrong(nTrial) = 0;
         badPress(nTrial) = 1;
-        data.qBadPresses(currQStruct) = data.qBadPresses(currQStruct) + 1;
+        data.qBadPresses(whichQStruct) = data.qBadPresses(whichQStruct) + 1;
         PsychHID('KbQueueStop', deviceNumber);
     elseif (whichPress(1) == keyPressNumbers(1) && whichTarget == 1) || (whichPress(1) == keyPressNumbers(2) && whichTarget == 2) % correct response
         data.rightwrong(nTrial) = 1;
@@ -736,13 +725,13 @@ while nTrial <= p.numTrials
     %    Update Quest    %
     %--------------------%
     if missed(nTrial) == 0 && badPress(nTrial) == 0 % if the trial was successful, update quest
-        data.tTestQ(qCnt(currQStruct),currQStruct) = 10^QuestQuantile(qStructMat(currQStruct)); % Recommended by Pelli (1987)
+        data.tTestQ(qCnt(whichQStruct),whichQStruct) = 10^QuestQuantile(qStructVect(whichQStruct)); % Recommended by Pelli (1987)
         % insert repsonse to current quest structure
-        data.rightwrongQ(qCnt(currQStruct),currQStruct) = data.rightwrong(nTrial); 
+        data.rightwrongQ(qCnt(whichQStruct),whichQStruct) = data.rightwrong(nTrial); 
         % update current quest structure 
-        qStructMat(currQStruct) = QuestUpdate(qStructMat(currQStruct), log10(data.tTestQ(qCnt(currQStruct),currQStruct)), data.rightwrongQ(qCnt(currQStruct),currQStruct));       
+        qStructVect(whichQStruct) = QuestUpdate(qStructVect(whichQStruct), log10(data.tTestQ(qCnt(whichQStruct),whichQStruct)), data.rightwrongQ(qCnt(whichQStruct),whichQStruct));       
         % update the number of times the current quest structure has been updated (keeps track of how many trials are in the structure)
-        qCnt(currQStruct) = qCnt(currQStruct) + 1; 
+        qCnt(whichQStruct) = qCnt(whichQStruct) + 1; 
     end
     
     %--------------------%
@@ -896,7 +885,7 @@ PsychPortAudio('Close', pahandle)
 
 % Save threshold data
 for nQStruct = 1:p.numQStructures
-    data.finalThresholdQ(nQStruct) = 10.^QuestMean(qStructMat(nQStruct));
+    data.finalThresholdQ(nQStruct) = 10.^QuestMean(qStructVect(nQStruct));
 end
 %% SAVE OUT THE DATA FILE
 cd(dataDir);
