@@ -15,20 +15,20 @@ KbName('UnifyKeyNames');
 Screen('Preference', 'SkipSyncTests', 0);
 
 % Subject name
-p.subject = 'Pre-Pilot2_LR';
+p.subject = 'test';
 
 % Trial Events Parameters
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 30; %20 for at least 40 trials per staircase
+p.repetitions = 1; %20 for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numQStructures = 12;
 
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
-deviceString = 'Wired USB Keyboard'; % testing room 207
+deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+% deviceString = 'Wired USB Keyboard'; % testing room 207
 % deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
 % deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
 % deviceString = 'CHICONY USB Keyboard'; % yurika's keyboard?
@@ -42,7 +42,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -68,8 +68,8 @@ cd(expDir);
 
 screens = Screen('Screens'); % look at available screens
 p.screenWidthPixels = Screen('Rect', max(screens));
-screenWidth = 34; % my screen =47.5cm; testing room 207 =34; testing room 304 =42 (29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen)
-viewDistance = 58; % my screen =58; testing room 207 =58; testing room 304 =128 (in cm, ideal distance: 1 cm equals 1 visual degree) 
+screenWidth = 47.5; % my screen =47.5cm; testing room 207 =34; testing room 304 =42 (29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen)
+viewDistance = 58; % my screen =58; testing room 207 =57; testing room 304 =128 (in cm, ideal distance: 1 cm equals 1 visual degree) 
 visAngle = (2*atan2(screenWidth/2, viewDistance))*(180/pi); % Visual angle of the whole screen
 p.pixPerDeg = round(p.screenWidthPixels(3)/visAngle); % pixels per degree visual angle
 grey = 128; white = 255; green = [0 255 0]; blue = [0 0 255]; black = [0 0 0]; red = [220 20 60]; 
@@ -292,8 +292,8 @@ end
 
 [window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('linearizedCLUT.mat');
-Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
+% load('linearizedCLUT.mat');
+% Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
 HideCursor;
 
 % Enable alpha blending
@@ -646,7 +646,7 @@ while nTrial <= p.numTrials
         end        
         % Draw Fixation
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
-        Screen('FillOval', window, dimgrey, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
+        Screen('FillOval', window, black, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
         Screen('Flip', window);
         % GetClicks;        
         % Stim duration
@@ -690,7 +690,7 @@ while nTrial <= p.numTrials
         Screen('DrawTexture', window, centerStimulus(newShift), [], CenterRectOnPoint([0 0 p.centerSize p.centerSize], patch(2), centerY), p.trialEvents(nTrial,2))
         % Draw Fixation
         Screen('FillOval', window, black, [centerX-p.fixationRing centerY-p.fixationRing centerX+p.fixationRing centerY+p.fixationRing]);
-        Screen('FillOval', window, dimgrey, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
+        Screen('FillOval', window, black, [centerX-p.fixation centerY-p.fixation centerX+p.fixation centerY+p.fixation])
         Screen('Flip', window);
     end
     t.trialTimes(nTrial,5) = toc; % duration of responseTime
@@ -745,7 +745,7 @@ while nTrial <= p.numTrials
     elseif missed(nTrial) == 1 % missed = blue
         feedbackColor = blue;
     elseif badPress(nTrial) == 1 % bad press = black
-        feedbackColor = black;
+        feedbackColor = grey;
     end
     % Keep stim flickering for feedback time, fixation becomes green (dur = t.feedback)
     tic;

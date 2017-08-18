@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'test';
+subject = 'Pre-Pilot2_LR';
 
 plotData = 'Yes';
 
@@ -19,6 +19,7 @@ else
 end
 
 %%
+data = theData(runNumber).data;
 stimConfigs = theData(runNumber).p.stimConfigurations;
 fixedStimContrast = theData(runNumber).p.fixedStimContrast;
 allFinThreshQ = theData(runNumber).data.finalThresholdQ;
