@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'Pre-Pilot_jitYW';
+subject = 'test';
 
 plotData = 'Yes';
 
@@ -11,8 +11,8 @@ expDir = pwd;
 dataDir = 'data';
 cd(dataDir)
 
-if exist(['vTA_surrSuppression_', subject, '.mat'],'file') ~= 0
-    load(['vTA_surrSuppression_', subject, '.mat']);
+if exist(['vTA_surrSuppressionV2_', subject, '.mat'],'file') ~= 0
+    load(['vTA_surrSuppressionV2_', subject, '.mat']);
     runNumber = length(theData);
 else
     error('Data file does not exist.')
