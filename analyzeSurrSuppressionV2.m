@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'Pre-Pilot2_IB';
+subject = 'Pre-Pilot2_LR';
 
 plotData = 'Yes';
 
@@ -85,7 +85,7 @@ for nRun = 1:length(runNumbers)
     figure(nRun)
     hold on
     bar(1:3,finThreshQAvgs(:,:,nRun)')
-    h = errorbar([1:3;1:3],finThreshQAvgs,finThreshQSTE,'x');
+    h = errorbar([1:3;1:3],finThreshQAvgs(:,:,nRun),finThreshQSTE(:,:,nRun),'x');
     set(h,'MarkerSize',0.1)
     title(['final thresholds ' subject(end-1:end)])
     xlabel('Condition')

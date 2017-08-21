@@ -20,15 +20,15 @@ p.subject = 'Pre-Pilot2_LR';
 % Trial Events Parameters
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 30; %20 for at least 40 trials per staircase
+p.repetitions = 20; %20 reps for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numQStructures = 12;
 
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
-deviceString = 'Wired USB Keyboard'; % testing room 207
+deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+% deviceString = 'Wired USB Keyboard'; % testing room 207
 % deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
 % deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
 % deviceString = 'CHICONY USB Keyboard'; % yurika's keyboard?
@@ -42,7 +42,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
