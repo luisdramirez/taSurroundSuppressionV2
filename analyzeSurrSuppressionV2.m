@@ -13,19 +13,26 @@ cd(dataDir)
 
 if exist(['vTA_surrSuppressionV2_', subject, '.mat'],'file') ~= 0
     load(['vTA_surrSuppressionV2_', subject, '.mat']);
-    runNumber = length(theData);
+    runNumbers = 1:length(theData);
 else
     error('Data file does not exist.')
 end
 
 %%
-data = theData(runNumber).data;
-stimConfigs = theData(runNumber).p.stimConfigurations;
-fixedStimContrast = theData(runNumber).p.fixedStimContrast;
-allFinThreshQ = theData(runNumber).data.finalThresholdQ;
-cThreshQ = theData(runNumber).data.cThresholdsQ;
-numQStructs = theData(runNumber).p.numQStructures;
+for nRun = 1:length(runNumbers)
+    data{nRun} = theData(nRun).data;
+    p{nRun} = theData(nRun).p;
+end
+
+stimConfigs = p{1}.stimConfigurations;
+fixedStimContrast = p{1}.fixedStimContrast;
+numQStructs = p{1}.numQStructures;
 qStructNames = {'collCued1' 'orthCued1' 'nsCued1' 'collCued2' 'orthCued2' 'nsCued2' 'collCued3' 'orthCued3' 'nsCued3' 'collUnCued1' 'orthUnCued1' 'nsUnCued1'}; %theData(runNumber).p.qStructuresNames;
+
+for nRun = 1:length(runNumbers)
+    allFinThreshQ{nRun} = data{nRun}.finalThresholdQ;
+    cThreshQ{nRun} = data{nRun}.cThresholdsQ;
+end
 
 nSCAtt = 3;
 nSCUnAtt = 1;
@@ -59,38 +66,46 @@ for nConfig = 1:length(configs)
 end
 
 % [coll orth ns]
-for nConfig = 1:length(configs)
-    finThreshQAvgs(1,nConfig) = mean(allFinThreshQ(threshAttIndx(:,nConfig))-fixedStimContrast);
-    finThreshQSTD(1,nConfig) = std(allFinThreshQ(threshAttIndx(:,nConfig)));
-    finThreshQSTE(1,nConfig) = finThreshQSTD(1,nConfig)/nSCAtt;
-    
-    finThreshQAvgs(2,nConfig) = mean(allFinThreshQ(threshUnAttIndx(:,nConfig))-fixedStimContrast);
-    finThreshQSTD(2,nConfig) = std(allFinThreshQ(threshUnAttIndx(:,nConfig)));
-    finThreshQSTE(2,nConfig) = finThreshQSTD(2,nConfig)/nSCUnAtt; 
-end
+for nRun = 1:length(runNumbers)
+    for nConfig = 1:length(configs)
+        finThreshQAvgs(1,nConfig,nRun) = mean(allFinThreshQ{nRun}(threshAttIndx(:,nConfig))-fixedStimContrast);
+        finThreshQSTD(1,nConfig,nRun) = std(allFinThreshQ{nRun}(threshAttIndx(:,nConfig)));
+        finThreshQSTE(1,nConfig,nRun) = finThreshQSTD(1,nConfig,nRun)/nSCAtt;
 
+        finThreshQAvgs(2,nConfig,nRun) = mean(allFinThreshQ{nRun}(threshUnAttIndx(:,nConfig))-fixedStimContrast);
+        finThreshQSTD(2,nConfig,nRun) = std(allFinThreshQ{nRun}(threshUnAttIndx(:,nConfig)));
+        finThreshQSTE(2,nConfig,nRun) = finThreshQSTD(2,nConfig,nRun)/nSCUnAtt; 
+    end
+end
 
 %% plots
 
-figure(1)
-hold on
-bar(1:3,finThreshQAvgs')
-errorbar(1:3,finThreshQAvgs(1,:),finThreshQSTE(1,:),'*')
-title(['final thresholds ' subject(end-1:end)])
-xlabel('Condition')
-ylabel('(C_T-C_F)')
-legend('att','unatt')
-axis square
-ylim([0 1])
-set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
-set(gca, 'XTick', [1:length(configs)])
-
-figure(2)
-for nStruct = 1:numQStructs
-subplot(4,3,nStruct)
-plot(cThreshQ(:,nStruct))
-title(qStructNames(nStruct))
-ylabel('C_T')
-xlabel('trial')
-ylim([0 1])
+for nRun = 1:length(runNumbers)
+    % final threshold plots
+    figure(nRun)
+    hold on
+    bar(1:3,finThreshQAvgs(:,:,nRun)')
+    h = errorbar([1:3;1:3],finThreshQAvgs,finThreshQSTE,'x');
+    set(h,'MarkerSize',0.1)
+    title(['final thresholds ' subject(end-1:end)])
+    xlabel('Condition')
+    ylabel('(C_T-C_F)')
+    legend('att','unatt')
+    axis square
+    ylim([0 max(max(finThreshQAvgs(:,:,nRun)))+min(min(finThreshQAvgs(:,:,nRun)))])
+    set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
+    set(gca, 'XTick', 1:length(configs))
+    % staircase plots
+    for nStruct = 1:numQStructs
+        figure(length(runNumbers)+nRun)
+        subplot(4,3,nStruct)
+        hold on
+        plot(cThreshQ{nRun}(:,nStruct))
+        title(qStructNames(nStruct))
+        ylabel('C_T')
+        xlabel('trial')
+        ylim([0 1])
+    end
 end
+
+
