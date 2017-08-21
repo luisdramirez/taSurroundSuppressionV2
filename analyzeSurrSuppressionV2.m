@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'Pre-Pilot2_LR';
+subject = 'Pre-Pilot2_IB';
 
 plotData = 'Yes';
 

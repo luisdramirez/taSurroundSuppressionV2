@@ -15,7 +15,7 @@ KbName('UnifyKeyNames');
 Screen('Preference', 'SkipSyncTests', 0);
 
 % Subject name
-p.subject = 'Pre-Pilot2_IB';
+p.subject = 'Pre-Pilot2_LR';
 
 % Trial Events Parameters
 p.cueValidity = 0.75;
