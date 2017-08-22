@@ -18,7 +18,7 @@ else
     error('Data file does not exist.')
 end
 
-%%
+%% prepare data 
 for nRun = 1:length(runNumbers)
     data{nRun} = theData(nRun).data;
     p{nRun} = theData(nRun).p;
@@ -90,6 +90,9 @@ if length(runNumbers) > 1
     allFinThreshQAvgs = mean(finThreshQAvgs,3);
     allFinThreshQSTD = std(finThreshQAvgs,0,3);
     allFinThreshQSTE = allFinThreshQSTD/length(runNumbers);
+    for nConfig = 1:length(configs)
+        allPercDiffFinThreshQAvgs(nConfig) = allFinThreshQAvgs(2,nConfig)-finThreshQAvgs(1,nConfig);
+    end
 end
 %% plots
 
@@ -138,6 +141,7 @@ end
 
 % Plot all runs
 if length(runNumbers) > 1
+    % final threshold plots (difference)
     figure
     hold on
     bar(1:3,allFinThreshQAvgs')
@@ -151,4 +155,17 @@ if length(runNumbers) > 1
     ylim([0 max(max(allFinThreshQAvgs))+min(min(allFinThreshQAvgs))])
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))
+    
+    % final threshold plots (percent difference)
+    figure
+    hold on
+    bar(1:3,percDiffFinThreshQAvgs(nRun,:)')
+    title(['all runs (' num2str(runNumbers(end)) ') perc diff final thresholds ' subject(end-1:end)])
+    xlabel('Condition')
+    ylabel('% diff')
+    axis square
+    ylim([0 max(max(percDiffFinThreshQAvgs(nRun,:)))+min(min(percDiffFinThreshQAvgs(nRun,:)))])
+    set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
+    set(gca, 'XTick', 1:length(configs))   
+    hold off
 end
