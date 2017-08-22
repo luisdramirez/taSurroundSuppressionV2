@@ -15,7 +15,7 @@ KbName('UnifyKeyNames');
 Screen('Preference', 'SkipSyncTests', 0);
 
 % Subject name
-p.subject = 'Pilot_LV';
+p.subject = 'test';
 
 % Trial Events Parameters
 p.cueValidity = 0.75;
@@ -27,8 +27,8 @@ p.numQStructures = 12;
 % Check which devicenumber the keyboard is assigned to
 deviceNumber = 0;
 [keyBoardIndices, productNames, ~] = GetKeyboardIndices;
-% deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
-deviceString = 'Wired USB Keyboard'; % testing room 207
+deviceString = 'Corsair Corsair K95W Gaming Keyboard'; % desk keyboard
+% deviceString = 'Wired USB Keyboard'; % testing room 207
 % deviceString = 'Apple Inc. Apple Keyboard'; % testing room 304
 % deviceString = 'Apple Internal Keyboard / Trackpad'; %my laptop
 % deviceString = 'CHICONY USB Keyboard'; % yurika's keyboard?
@@ -42,7 +42,7 @@ end
 if deviceNumber == 0
     error('No device by that name was detected');
 end
-% deviceNumber = 8;
+deviceNumber = 8;
 
 % Setup key press
 keyPressNumbers = [KbName('LeftArrow') KbName('RightArrow')];
@@ -68,8 +68,8 @@ cd(expDir);
 
 screens = Screen('Screens'); % look at available screens
 p.screenWidthPixels = Screen('Rect', max(screens));
-screenWidth = 34; % my screen =47.5cm; testing room 207 =34; testing room 304 =42 (29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen)
-viewDistance = 57; % my screen =58; testing room 207 =57; testing room 304 =128 (in cm, ideal distance: 1 cm equals 1 visual degree) 
+screenWidth = 47.5; % my screen =47.5cm; testing room 207 =34; testing room 304 =42 (29 cm macbook air, 40 cm trinitron crt, 60 cm Qnix screen)
+viewDistance = 58; % my screen =58; testing room 207 =57; testing room 304 =128 (in cm, ideal distance: 1 cm equals 1 visual degree) 
 visAngle = (2*atan2(screenWidth/2, viewDistance))*(180/pi); % Visual angle of the whole screen
 p.pixPerDeg = round(p.screenWidthPixels(3)/visAngle); % pixels per degree visual angle
 grey = 128; white = 255; green = [0 255 0]; blue = [0 0 255]; black = [0 0 0]; red = [220 20 60]; 
@@ -89,7 +89,7 @@ p.surroundContrast = 1; % fixed surround contrast
 p.centerSize = round(2 * p.pixPerDeg); % center grating size in pixels
 p.surroundSize = round(p.screenWidthPixels(4)); % surround grating size in pixels
 p.gapSize = round(0.02 * p.pixPerDeg); % gap between center and surround in pixels
-p.fixation = round(0.075 * p.pixPerDeg); % fixation size in pixels
+p.fixation = round(0.085 * p.pixPerDeg); % fixation size in pixels
 p.fixationRing = p.fixation*1.5; % ring around fixation, dependent on fixation size.
 
 % Frequency and phase parameters
@@ -217,19 +217,19 @@ p.trialEvents(:,end+1) = trialCues; % add trial cues
 %---------------------%
 % Check Distributions %
 %---------------------%
-% trialCueDistrib should be all 1s (num of attended and unattended should be equal to the cue validity ratio*numRepetions). 
-trial_cueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); % [validity x configuration]
+% checkCueDistrib should be all ones (num of attended and unattended should be equal to the cue validity ratio*numRepetions). 
+checkCueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); % [validity x configuration]
 for nConfig = 1:length(p.stimConfigurations)
     for nCue = 1:length(p.trialCuesNames)
         if nCue == 1
-            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == p.numAttTrialsPerComb*p.repetitions;
+            checkCueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == p.numAttTrialsPerComb*p.repetitions;
         elseif nCue == 2
-            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == (p.minNumBlocks - p.numAttTrialsPerComb)*p.repetitions;
+            checkCueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == (p.minNumBlocks - p.numAttTrialsPerComb)*p.repetitions;
         end
     end
 end
-trial_cueDistrib; 
-p.trialEvents = Shuffle(p.trialEvents,2);
+checkCueDistrib; 
+% p.trialEvents = Shuffle(p.trialEvents,2);
 p.trialEvents; % [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
 p.stimConfigurationsNames;
 %% TIMING PARAMETERS
@@ -292,8 +292,8 @@ end
 
 [window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('linearizedCLUT.mat');
-Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
+% load('linearizedCLUT.mat');
+% Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
 HideCursor;
 
 % Enable alpha blending
