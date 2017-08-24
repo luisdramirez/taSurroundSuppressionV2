@@ -115,16 +115,14 @@ for nRun = 1:length(runNumbers)
     hold off
     % staircase plots
     figure
-    hold on
-    for nStruct = 1:numQStructs               
+    for nStruct = 1:numQStructs
         subplot(4,3,nStruct)
         plot(cThreshQ{nRun}(:,nStruct))        
         title(qStructNames(nStruct))
         ylabel('C_T')
         xlabel('trial')
-        ylim([0 1])
+        ylim([0 max(cThreshQ{nRun}(:,nStruct))+min(cThreshQ{nRun}(:,nStruct))])
     end
-    hold off
     % final threshold plots (percent difference)
     figure
     hold on
