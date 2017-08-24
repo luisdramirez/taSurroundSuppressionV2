@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'Pilot_LR';
+subject = 'Pilot_LV';
 
 plotData = 'Yes';
 
@@ -91,7 +91,7 @@ if length(runNumbers) > 1
     allFinThreshQSTD = std(finThreshQAvgs,0,3);
     allFinThreshQSTE = allFinThreshQSTD/length(runNumbers);
     for nConfig = 1:length(configs)
-        allPercDiffFinThreshQAvgs(nConfig) = allFinThreshQAvgs(2,nConfig)-finThreshQAvgs(1,nConfig);
+        allPercDiffFinThreshQAvgs(nConfig) = (allFinThreshQAvgs(2,nConfig)-allFinThreshQAvgs(1,nConfig))/allFinThreshQAvgs(1,nConfig);
     end
 end
 %% plots

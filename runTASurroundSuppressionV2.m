@@ -15,7 +15,7 @@ KbName('UnifyKeyNames');
 Screen('Preference', 'SkipSyncTests', 0);
 
 % Subject name
-p.subject = 'Pilot_LV';
+p.subject = 'Pilot_';
 
 % Trial Events Parameters
 p.cueValidity = 0.75;
@@ -228,8 +228,14 @@ for nConfig = 1:length(p.stimConfigurations)
         end
     end
 end
-checkCueDistrib; 
-% p.trialEvents = Shuffle(p.trialEvents,2);
+checkCueDistrib;
+if strcmp(p.subject,'test')
+    test = 1;
+else
+    test = 0;
+end
+shuffled = 0;
+p.trialEvents = Shuffle(p.trialEvents,2); shuffled = 1;
 p.trialEvents; % [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
 p.stimConfigurationsNames;
 %% TIMING PARAMETERS
@@ -289,27 +295,30 @@ for nPhase = 1:numPhases
 end
 %% WINDOW SETUP
 % Open window and where to display center targets.
+if shuffled == 1 || test == 1
+    [window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
+    OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
+    load('linearizedCLUT.mat');
+    Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
+    HideCursor;
 
-[window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
-OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('linearizedCLUT.mat');
-Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
-HideCursor;
+    % Enable alpha blending
+    Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-% Enable alpha blending
-Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    % Define coordinates where to draw the stimuli
+    centerX = rect(3)/2; centerY = rect(4)/2; % center coordinates
+    p.ecc = 3*p.pixPerDeg; % eccentricity of targets from center 
 
-% Define coordinates where to draw the stimuli
-centerX = rect(3)/2; centerY = rect(4)/2; % center coordinates
-p.ecc = 3*p.pixPerDeg; % eccentricity of targets from center 
+    % Coordinates for location on left and right side of fixation
+    patch =  [centerX-p.ecc centerX+p.ecc]; %[leftStimX rightStimX] % X coordinates of targets
+    patchDeg = patch/p.pixPerDeg; % coordinates of targets in degrees
 
-% Coordinates for location on left and right side of fixation
-patch =  [centerX-p.ecc centerX+p.ecc]; %[leftStimX rightStimX] % X coordinates of targets
-patchDeg = patch/p.pixPerDeg; % coordinates of targets in degrees
-
-Screen('TextStyle', window, 1);
-Screen('TextSize', window, 16);
-t.ifi = Screen('GetFlipInterval',window); % grab screen refresh rate
+    Screen('TextStyle', window, 1);
+    Screen('TextSize', window, 16);
+    t.ifi = Screen('GetFlipInterval',window); % grab screen refresh rate
+elseif shuffled == 0 && test == 0
+    error('Trials not shuffled!')
+end
 %% SOUND SETUP
 % Initialize audio channel to play cues. Sets up cues by number of elements
 % in cueFreqs, which determines which frequency to play.
