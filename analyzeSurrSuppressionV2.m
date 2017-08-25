@@ -58,7 +58,7 @@ for nConfig = 1:length(configs)
     end
 end
 
-% [coll orth ns]
+% final threshold averages, std, and ste [coll orth ns]
 for nConfig = 1:length(configs)
     finThreshQAvgs(1,nConfig) = mean(allFinThreshQ(threshAttIndx(:,nConfig))-fixedStimContrast);
     finThreshQSTD(1,nConfig) = std(allFinThreshQ(threshAttIndx(:,nConfig)));
@@ -69,6 +69,10 @@ for nConfig = 1:length(configs)
     finThreshQSTE(2,nConfig) = finThreshQSTD(2,nConfig)/nSCUnAtt; 
 end
 
+% diff between att and un att averages
+for nConfig = 1:length(configs)
+    finThreshQAvgsDiff(nConfig) = (finThreshQAvgs(2,nConfig)-finThreshQAvgs(1,nConfig))/finThreshQAvgs(1,nConfig);    
+end
 
 %% plots
 
@@ -94,3 +98,5 @@ ylabel('C_T')
 xlabel('trial')
 ylim([0 1])
 end
+
+figure
