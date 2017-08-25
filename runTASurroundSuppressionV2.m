@@ -15,12 +15,12 @@ KbName('UnifyKeyNames');
 Screen('Preference', 'SkipSyncTests', 0);
 
 % Subject name
-p.subject = 'Pre-Pilot2_IB';
+p.subject = 'Pilot_';
 
 % Trial Events Parameters
 p.cueValidity = 0.75;
 [p.numAttTrialsPerComb, p.minNumBlocks] = rat(p.cueValidity);
-p.repetitions = 30; %20 for at least 40 trials per staircase
+p.repetitions = 20; %20 reps for at least 40 trials per staircase
 p.numBlocks = p.minNumBlocks*p.repetitions; 
 p.numQStructures = 12;
 
@@ -89,7 +89,7 @@ p.surroundContrast = 1; % fixed surround contrast
 p.centerSize = round(2 * p.pixPerDeg); % center grating size in pixels
 p.surroundSize = round(p.screenWidthPixels(4)); % surround grating size in pixels
 p.gapSize = round(0.02 * p.pixPerDeg); % gap between center and surround in pixels
-p.fixation = round(0.075 * p.pixPerDeg); % fixation size in pixels
+p.fixation = round(0.085 * p.pixPerDeg); % fixation size in pixels
 p.fixationRing = p.fixation*1.5; % ring around fixation, dependent on fixation size.
 
 % Frequency and phase parameters
@@ -217,19 +217,25 @@ p.trialEvents(:,end+1) = trialCues; % add trial cues
 %---------------------%
 % Check Distributions %
 %---------------------%
-% trialCueDistrib should be all 1s (num of attended and unattended should be equal to the cue validity ratio*numRepetions). 
-trial_cueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); % [validity x configuration]
+% checkCueDistrib should be all ones (num of attended and unattended should be equal to the cue validity ratio*numRepetions). 
+checkCueDistrib = nan(length(p.trialCuesNames), length(p.stimConfigurations)); % [validity x configuration]
 for nConfig = 1:length(p.stimConfigurations)
     for nCue = 1:length(p.trialCuesNames)
         if nCue == 1
-            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == p.numAttTrialsPerComb*p.repetitions;
+            checkCueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == p.numAttTrialsPerComb*p.repetitions;
         elseif nCue == 2
-            trial_cueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == (p.minNumBlocks - p.numAttTrialsPerComb)*p.repetitions;
+            checkCueDistrib(nCue,nConfig) = sum( p.trialEvents(p.trialEvents(:,1)==p.stimConfigurations(nConfig),end) == nCue) == (p.minNumBlocks - p.numAttTrialsPerComb)*p.repetitions;
         end
     end
 end
-trial_cueDistrib; 
-p.trialEvents = Shuffle(p.trialEvents,2);
+checkCueDistrib;
+if strcmp(p.subject,'test')
+    test = 1;
+else
+    test = 0;
+end
+shuffled = 0;
+p.trialEvents = Shuffle(p.trialEvents,2); shuffled = 1;
 p.trialEvents; % [stimConfiguration, targOrientation, surrOrientation, whichTarget, qStructures, cueValidity]
 p.stimConfigurationsNames;
 %% TIMING PARAMETERS
@@ -289,27 +295,30 @@ for nPhase = 1:numPhases
 end
 %% WINDOW SETUP
 % Open window and where to display center targets.
+if shuffled == 1 || test == 1
+    [window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
+    OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
+    load('linearizedCLUT.mat');
+    Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
+    HideCursor;
 
-[window,rect] = Screen('OpenWindow', max(screens), grey,[],[],[],[],16);
-OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
-load('linearizedCLUT.mat');
-Screen('LoadNormalizedGammaTable', window, linearizedCLUT);
-HideCursor;
+    % Enable alpha blending
+    Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-% Enable alpha blending
-Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    % Define coordinates where to draw the stimuli
+    centerX = rect(3)/2; centerY = rect(4)/2; % center coordinates
+    p.ecc = 3*p.pixPerDeg; % eccentricity of targets from center 
 
-% Define coordinates where to draw the stimuli
-centerX = rect(3)/2; centerY = rect(4)/2; % center coordinates
-p.ecc = 3*p.pixPerDeg; % eccentricity of targets from center 
+    % Coordinates for location on left and right side of fixation
+    patch =  [centerX-p.ecc centerX+p.ecc]; %[leftStimX rightStimX] % X coordinates of targets
+    patchDeg = patch/p.pixPerDeg; % coordinates of targets in degrees
 
-% Coordinates for location on left and right side of fixation
-patch =  [centerX-p.ecc centerX+p.ecc]; %[leftStimX rightStimX] % X coordinates of targets
-patchDeg = patch/p.pixPerDeg; % coordinates of targets in degrees
-
-Screen('TextStyle', window, 1);
-Screen('TextSize', window, 16);
-t.ifi = Screen('GetFlipInterval',window); % grab screen refresh rate
+    Screen('TextStyle', window, 1);
+    Screen('TextSize', window, 16);
+    t.ifi = Screen('GetFlipInterval',window); % grab screen refresh rate
+elseif shuffled == 0 && test == 0
+    error('Trials not shuffled!')
+end
 %% SOUND SETUP
 % Initialize audio channel to play cues. Sets up cues by number of elements
 % in cueFreqs, which determines which frequency to play.
@@ -371,16 +380,17 @@ data.qBadPresses = zeros(1,p.numQStructures); % vector to keep track of bad butt
 PsychHID('KbQueueCreate', deviceNumber);
 PsychHID('KbQueueStart', deviceNumber);
 
-welcomeText = ['Welcome!' '\n' '\n'...
-    '' '\n' '\n'...
-    'On every trial two center targets are presented next to fixation, on the left and right.' '\n' '\n' ...
-    'Your task is to detect a change in contrast in either one of these center targets. ' '\n' '\n' ...
-    'An auditory cue (pre-cue) will indicate when an increment in contrast will occur.' '\n' '\n' ...
-    'On most trials the center targets will be accompanied by a surround stimulus, while on some the surround stimulus is absent.' '\n' '\n' ...
-    'Additionally, on some trials there will be no auditory cue.' '\n' '\n' ...
-    'When the fixation becomes green, report which target the contrast increment occured by pressing either the LEFT or RIGHT arrow key.' '\n' '\n' ...
-    'Be sure to always maintain steady fixation on dot! ' '\n' '\n' '\n' ...
-    'Press the DOWN arrow key to continue.' '\n' '\n' ];
+welcomeText = ['Welcome!' '\n' '\n' '\n' '\n'...
+    'Two centered targets will be continuously presented next to fixation; one to the left and right.' '\n' '\n' ...
+    'Your task is to detect and report a contrast increment in either one of these targets.' '\n' '\n' ...
+    'To report a contrast increment in a target, press either the LEFT or RIGHT arrow key respectively.' '\n' '\n' ...
+    'An auditory cue will indicate when an increment in contrast will appear. This auditory cue may not always occur.' '\n' '\n' ...
+    'The contrast increment may also be accompanied by a surround grating.' '\n' '\n' ...
+    'Be sure to always maintain steady fixation on the dot!' '\n' '\n' ...
+    'The fixation becomes black, signaling both that a target appeared and to respond. ' '\n' '\n'  ...
+    'The fixation also provides repsonse feedback immediately through various colors.' '\n' '\n'  ...
+    'Green = correct, red = incorrect, blue = missed, and grey = irrelevant key press.' '\n' '\n' ... 
+    'Press any arrow key to begin the experiment.' '\n' '\n' ];
 
 DrawFormattedText(window, welcomeText, 'center', 'center', 255);
 Screen('Flip', window);
