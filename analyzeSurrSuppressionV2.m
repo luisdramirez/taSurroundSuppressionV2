@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'Pilot_AB';
+subject = 'Pilot_';
 
 plotData = 'Yes';
 
@@ -42,7 +42,7 @@ cues = {'Cued' 'UnCued'};
 threshAttIndx = nan(nSCAtt,length(configs));
 threshUnAttIndx = nan(nSCUnAtt,length(configs));
 
-% determine which final thresholds to take as averages for each
+% determine which final thresholds (indices) to take as averages for each
 % combination
 for nConfig = 1:length(configs)
     for nSC = 1:nSCAtt
@@ -50,7 +50,7 @@ for nConfig = 1:length(configs)
         for nQStruct = 1:length(qStructNames)
             currStruct = qStructNames{nQStruct};
             if strcmp(currConfig,currStruct)
-                threshAttIndx(nSC,nConfig) = nQStruct;
+                threshAttIndx(nSC,nConfig) = nQStruct; %
             end
         end
     end
@@ -59,7 +59,7 @@ for nConfig = 1:length(configs)
         for nQStruct = 1:length(qStructNames)
             currStruct = qStructNames{nQStruct};
             if strcmp(currConfig,currStruct)
-                threshUnAttIndx(nSC,nConfig) = nQStruct;
+                threshUnAttIndx(nSC,nConfig) = nQStruct; %
             end
         end
     end
@@ -131,7 +131,7 @@ for nRun = 1:length(runNumbers)
     xlabel('Condition')
     ylabel('% diff')
     axis square
-    ylim([0 max(max(percDiffFinThreshQAvgs(nRun,:)))+min(min(percDiffFinThreshQAvgs(nRun,:)))])
+%     ylim([0 max(max(percDiffFinThreshQAvgs(nRun,:)))+min(min(percDiffFinThreshQAvgs(nRun,:)))])
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))   
     hold off
