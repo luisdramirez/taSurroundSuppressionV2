@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'Pilot_LV';
+subject = 'Pilot_AB';
 
 plotData = 'Yes';
 
@@ -98,7 +98,7 @@ end
 
 % Plot each run
 for nRun = 1:length(runNumbers)
-    % final threshold plots (difference)
+    % final threshold plots (difference) %
     figure
     bar(1:3,finThreshQAvgs(:,:,nRun)')
     hold on
@@ -113,7 +113,7 @@ for nRun = 1:length(runNumbers)
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))
     hold off
-    % staircase plots
+    % staircase plots %
     figure
     for nStruct = 1:numQStructs
         subplot(4,3,nStruct)
@@ -123,7 +123,7 @@ for nRun = 1:length(runNumbers)
         xlabel('trial')
         ylim([0 max(cThreshQ{nRun}(:,nStruct))+min(cThreshQ{nRun}(:,nStruct))])
     end
-    % final threshold plots (percent difference)
+    % final threshold plots (percent difference) %
     figure
     hold on
     bar(1:3,percDiffFinThreshQAvgs(nRun,:)')
@@ -139,7 +139,7 @@ end
 
 % Plot all runs
 if length(runNumbers) > 1
-    % final threshold plots (difference)
+    % final threshold plots (difference) %
     figure
     hold on
     bar(1:3,allFinThreshQAvgs')
@@ -154,7 +154,7 @@ if length(runNumbers) > 1
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))
     
-    % final threshold plots (percent difference)
+    % final threshold plots (percent difference) %
     figure
     hold on
     bar(1:3,percDiffFinThreshQAvgs(nRun,:)')
