@@ -105,6 +105,7 @@ if length(runNumbers) > 1
         allPercDiffFinThreshQAvgs(nConfig) = (allFinThreshQAvgs(2,nConfig)-allFinThreshQAvgs(1,nConfig))/allFinThreshQAvgs(1,nConfig);
     end
 end
+
 %% plots
 
 % Plot each run
