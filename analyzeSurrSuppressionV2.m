@@ -3,7 +3,7 @@
 clear all
 close all
 
-subject = 'Pilot_';
+subject = 'Pilot_IB';
 
 plotData = 'Yes';
 
@@ -22,6 +22,7 @@ end
 for nRun = 1:length(runNumbers)
     data{nRun} = theData(nRun).data;
     p{nRun} = theData(nRun).p;
+    t{nRun} = theData(nRun).t;
 end
 
 stimConfigs = p{1}.stimConfigurations;
@@ -109,7 +110,7 @@ for nRun = 1:length(runNumbers)
     ylabel('(C_T-C_F)')
     legend('att','unatt')
     axis square
-    ylim([0 max(max(finThreshQAvgs(:,:,nRun)))+min(min(finThreshQAvgs(:,:,nRun)))])
+%     ylim([0 max(max(finThreshQAvgs(:,:,nRun)))+min(min(finThreshQAvgs(:,:,nRun)))])
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))
     hold off
@@ -126,12 +127,12 @@ for nRun = 1:length(runNumbers)
     % final threshold plots (percent difference) %
     figure
     hold on
-    bar(1:3,percDiffFinThreshQAvgs(nRun,:)')
+    bar(1:3,percDiffFinThreshQAvgs(nRun,:))
     title(['run: ' num2str(nRun) ' perc diff final thresholds ' subject(end-1:end)])
     xlabel('Condition')
     ylabel('% diff')
     axis square
-%     ylim([0 max(max(percDiffFinThreshQAvgs(nRun,:)))+min(min(percDiffFinThreshQAvgs(nRun,:)))])
+%   ylim([0 max(max(percDiffFinThreshQAvgs(nRun,:)))+min(min(percDiffFinThreshQAvgs(nRun,:)))])
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))   
     hold off
@@ -150,19 +151,19 @@ if length(runNumbers) > 1
     ylabel('(C_T-C_F)')
     legend('att','unatt')
     axis square
-    ylim([0 max(max(allFinThreshQAvgs))+min(min(allFinThreshQAvgs))])
+%     ylim([0 max(max(allFinThreshQAvgs))+min(min(allFinThreshQAvgs))])
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))
     
     % final threshold plots (percent difference) %
     figure
     hold on
-    bar(1:3,percDiffFinThreshQAvgs(nRun,:)')
+    bar(1:3,mean(percDiffFinThreshQAvgs))
     title(['all runs (' num2str(runNumbers(end)) ') perc diff final thresholds ' subject(end-1:end)])
     xlabel('Condition')
     ylabel('% diff')
     axis square
-    ylim([0 max(max(percDiffFinThreshQAvgs(nRun,:)))+min(min(percDiffFinThreshQAvgs(nRun,:)))])
+%     ylim([0 max(max(percDiffFinThreshQAvgs))+min(min(percDiffFinThreshQAvgs))])
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))   
     hold off
