@@ -3,9 +3,7 @@
 clear all
 close all
 
-subject = 'Pilot_IB';
-
-plotData = 'Yes';
+subject = 'Pilot_AB';
 
 expDir = pwd;
 dataDir = 'data';
@@ -18,32 +16,43 @@ else
     error('Data file does not exist.')
 end
 
-%% prepare data 
+%% prepare data
+
+% Pre-allocate cells 
+data = cell(1,length(runNumbers)); % response data
+p = cell(1,length(runNumbers)); % parameters
+t = cell(1,length(runNumbers)); % timing
+allFinThreshQ = cell(1,length(runNumbers)); % final threshold for each staircase
+cThreshQ = cell(1,length(runNumbers)); % threshold for each trial, each staircase
+
 for nRun = 1:length(runNumbers)
-    data{nRun} = theData(nRun).data;
-    p{nRun} = theData(nRun).p;
-    t{nRun} = theData(nRun).t;
+    data{nRun} = theData(nRun).data; 
+    p{nRun} = theData(nRun).p; 
+    t{nRun} = theData(nRun).t; 
+    allFinThreshQ{nRun} = data{nRun}.finalThresholdQ; 
+    cThreshQ{nRun} = data{nRun}.cThresholdsQ; 
 end
 
+%Pre-defined some variables (hard-coded)
 stimConfigs = p{1}.stimConfigurations;
 fixedStimContrast = p{1}.fixedStimContrast;
 numQStructs = p{1}.numQStructures;
 qStructNames = {'collCued1' 'orthCued1' 'nsCued1' 'collCued2' 'orthCued2' 'nsCued2' 'collCued3' 'orthCued3' 'nsCued3' 'collUnCued1' 'orthUnCued1' 'nsUnCued1'}; %theData(runNumber).p.qStructuresNames;
-
-for nRun = 1:length(runNumbers)
-    allFinThreshQ{nRun} = data{nRun}.finalThresholdQ;
-    cThreshQ{nRun} = data{nRun}.cThresholdsQ;
-end
-
 nSCAtt = 3;
 nSCUnAtt = 1;
+numRuns = 3;
 configs = {'coll' 'orth' 'ns'};
 cues = {'Cued' 'UnCued'};
 
+% Pre-define vars
+finThreshQAvgs = nan(numel(cues),numel(configs),numRuns);
+finThreshQSTD = nan(numel(cues),numel(configs),numRuns);
+finThreshQSTE = nan(numel(cues),numel(configs),numRuns);
+percDiffFinThreshQAvgs = nan(numRuns,numel(configs));
 threshAttIndx = nan(nSCAtt,length(configs));
 threshUnAttIndx = nan(nSCUnAtt,length(configs));
 
-% determine which final thresholds (indices) to take as averages for each
+% Determine which final thresholds (indices) to take as averages for each
 % combination
 for nConfig = 1:length(configs)
     for nSC = 1:nSCAtt
@@ -66,6 +75,7 @@ for nConfig = 1:length(configs)
     end
 end
 
+<<<<<<< HEAD
 % final threshold averages, std, and ste [coll orth ns]
 for nConfig = 1:length(configs)
     finThreshQAvgs(1,nConfig) = mean(allFinThreshQ(threshAttIndx(:,nConfig))-fixedStimContrast);
@@ -77,34 +87,29 @@ for nConfig = 1:length(configs)
     finThreshQSTE(2,nConfig) = finThreshQSTD(2,nConfig)/nSCUnAtt; 
 end
 
-% determine average thresholds per condition, per run [(att unatt) x (coll orth ns)]
+% Averages, STDs, STEs, and Percent Differences
 for nRun = 1:length(runNumbers)
     for nConfig = 1:length(configs)
+        % determine average thresholds per condition, per run [(att unatt) x (coll orth ns)]
         finThreshQAvgs(1,nConfig,nRun) = mean(allFinThreshQ{nRun}(threshAttIndx(:,nConfig)))-fixedStimContrast;
         finThreshQSTD(1,nConfig,nRun) = std(allFinThreshQ{nRun}(threshAttIndx(:,nConfig)));
         finThreshQSTE(1,nConfig,nRun) = finThreshQSTD(1,nConfig,nRun)/nSCAtt;
 
         finThreshQAvgs(2,nConfig,nRun) = mean(allFinThreshQ{nRun}(threshUnAttIndx(:,nConfig)))-fixedStimContrast;
         finThreshQSTD(2,nConfig,nRun) = std(allFinThreshQ{nRun}(threshUnAttIndx(:,nConfig)));
-        finThreshQSTE(2,nConfig,nRun) = finThreshQSTD(2,nConfig,nRun)/nSCUnAtt; 
-    end
-end
-
-% determine percent difference between att and unatt per condition [run x (coll orth ns)]
-for nRun = 1:length(runNumbers)
-    for nConfig = 1:length(configs)
+        finThreshQSTE(2,nConfig,nRun) = finThreshQSTD(2,nConfig,nRun)/nSCUnAtt;
+        
+        % determine percent difference between att and unatt per condition [run x (coll orth ns)]
         percDiffFinThreshQAvgs(nRun,nConfig) = (finThreshQAvgs(2,nConfig,nRun)-finThreshQAvgs(1,nConfig,nRun))/finThreshQAvgs(1,nConfig,nRun);
     end
 end
 
-% determine average thresholds per condition across runs [(att unatt) x (coll orth ns)]
+% Average thresholds per condition across runs [(att unatt) x (coll orth ns)]
 if length(runNumbers) > 1
     allFinThreshQAvgs = mean(finThreshQAvgs,3);
     allFinThreshQSTD = std(finThreshQAvgs,0,3);
     allFinThreshQSTE = allFinThreshQSTD/length(runNumbers);
-    for nConfig = 1:length(configs)
-        allPercDiffFinThreshQAvgs(nConfig) = (allFinThreshQAvgs(2,nConfig)-allFinThreshQAvgs(1,nConfig))/allFinThreshQAvgs(1,nConfig);
-    end
+    allPercDiffFinThreshQAvgs = mean(percDiffFinThreshQAvgs,1);    
 end
 
 %% plots
@@ -126,6 +131,7 @@ for nRun = 1:length(runNumbers)
     set(gca, 'XTickLabel', {'coll' 'orth' 'ns'})
     set(gca, 'XTick', 1:length(configs))
     hold off
+    
     % staircase plots %
     figure
     for nStruct = 1:numQStructs
@@ -136,6 +142,7 @@ for nRun = 1:length(runNumbers)
         xlabel('trial')
         ylim([0 max(cThreshQ{nRun}(:,nStruct))+min(cThreshQ{nRun}(:,nStruct))])
     end
+    
     % final threshold plots (percent difference) %
     figure
     hold on
@@ -170,7 +177,7 @@ if length(runNumbers) > 1
     % final threshold plots (percent difference) %
     figure
     hold on
-    bar(1:3,mean(percDiffFinThreshQAvgs))
+    bar(1:3,allPercDiffFinThreshQAvgs)
     title(['all runs (' num2str(runNumbers(end)) ') perc diff final thresholds ' subject(end-1:end)])
     xlabel('Condition')
     ylabel('% diff')
